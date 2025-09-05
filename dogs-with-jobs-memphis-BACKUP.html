@@ -1,0 +1,2201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Dogs With Jobs: Corporate Edition 📊</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Space+Grotesk:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<style>
+  :root {
+    --coral: #E76F51;
+    --teal: #65C3BA;
+    --navy: #2A4B8D;
+    --cream: #FAF0E6;
+    --yellow: #F4A261;
+    --pink: #E9C46A;
+    
+    --bg-main: #FAF0E6;
+    --bg-card: #FFFFFF;
+    --bg-dark: #2A4B8D;
+    
+    --text-primary: #2A4B8D;
+    --text-secondary: #5A7BB5;
+    --text-light: #8B9DC3;
+    
+    --shadow-sm: 0 2px 4px rgba(42, 75, 141, 0.1);
+    --shadow-md: 0 4px 8px rgba(42, 75, 141, 0.15);
+    --shadow-lg: 0 8px 16px rgba(42, 75, 141, 0.2);
+    --shadow-xl: 0 16px 32px rgba(42, 75, 141, 0.3);
+    
+    --gradient-coral: linear-gradient(135deg, #E76F51, #FF8B6F);
+    --gradient-teal: linear-gradient(135deg, #65C3BA, #7FD8CF);
+    --gradient-navy: linear-gradient(135deg, #2A4B8D, #3A5BA0);
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg-main);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* Memphis Background Pattern */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    opacity: 0.1;
+    pointer-events: none;
+    background-image: 
+      radial-gradient(circle at 20% 30%, var(--coral) 0%, transparent 50%),
+      radial-gradient(circle at 80% 60%, var(--teal) 0%, transparent 40%),
+      radial-gradient(circle at 40% 80%, var(--yellow) 0%, transparent 30%);
+    z-index: -2;
+  }
+
+  /* Grid Pattern */
+  .grid-bg {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: 
+      linear-gradient(var(--navy) 1px, transparent 1px),
+      linear-gradient(90deg, var(--navy) 1px, transparent 1px);
+    background-size: 50px 50px;
+    opacity: 0.03;
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  /* Geometric Decorations */
+  .geo-decor {
+    position: fixed;
+    pointer-events: none;
+  }
+  
+  .geo-1 {
+    top: 10%;
+    left: 5%;
+    width: 80px;
+    height: 80px;
+    background: var(--coral);
+    transform: rotate(45deg);
+    opacity: 0.2;
+    border-radius: 10px;
+  }
+  
+  .geo-2 {
+    top: 60%;
+    right: 10%;
+    width: 100px;
+    height: 100px;
+    border: 3px solid var(--teal);
+    border-radius: 50%;
+    opacity: 0.3;
+  }
+  
+  .geo-3 {
+    bottom: 15%;
+    left: 10%;
+    width: 0;
+    height: 0;
+    border-left: 40px solid transparent;
+    border-right: 40px solid transparent;
+    border-bottom: 70px solid var(--yellow);
+    opacity: 0.2;
+  }
+
+  /* Header */
+  header {
+    background: linear-gradient(135deg, var(--bg-card), #f8f8f8);
+    border-bottom: 4px solid var(--navy);
+    padding: 1rem 2rem;
+    box-shadow: var(--shadow-lg);
+    position: sticky;
+    top: 0;
+    z-index: 500;
+  }
+
+  .header-content {
+    max-width: 1600px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2rem;
+  }
+
+  .logo-section {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .logo-badge {
+    width: 45px;
+    height: 45px;
+    background: linear-gradient(135deg, var(--coral), var(--teal));
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    box-shadow: var(--shadow-md);
+    transform: rotate(-5deg);
+    animation: wiggle 3s ease-in-out infinite;
+  }
+  
+  @keyframes wiggle {
+    0%, 100% { transform: rotate(-5deg); }
+    50% { transform: rotate(5deg); }
+  }
+
+  h1 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 1.5rem;
+    color: var(--text-primary);
+  }
+  
+  /* Status Display in Header */
+  .header-status {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2rem;
+  }
+  
+  .status-badge {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    background: var(--bg-main);
+    border: 2px solid var(--navy);
+    border-radius: 8px;
+    position: relative;
+  }
+  
+  .status-badge::after {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60%;
+    height: 3px;
+    background: var(--gradient-coral);
+    border-radius: 2px;
+  }
+  
+  .status-badge-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+  
+  .status-badge-value {
+    font-size: 1.2rem;
+    font-weight: 700;
+    background: var(--gradient-coral);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  
+  /* Gear Menu */
+  .gear-menu {
+    position: relative;
+  }
+  
+  .gear-btn {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    background: var(--gradient-navy);
+    border: none;
+    color: white;
+    font-size: 1.3rem;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: var(--shadow-md);
+  }
+  
+  .gear-btn:hover {
+    transform: rotate(90deg);
+    box-shadow: var(--shadow-lg);
+  }
+  
+  .gear-dropdown {
+    position: absolute;
+    top: 55px;
+    right: 0;
+    background: var(--bg-card);
+    border: 2px solid var(--navy);
+    border-radius: 8px;
+    box-shadow: var(--shadow-xl);
+    display: none;
+    min-width: 150px;
+    overflow: hidden;
+  }
+  
+  .gear-dropdown.open {
+    display: block;
+  }
+  
+  .gear-dropdown button {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  
+  .gear-dropdown button:hover {
+    background: var(--gradient-teal);
+    color: white;
+  }
+
+  /* Buttons */
+  .btn {
+    padding: 0.75rem 1.5rem;
+    border: 2px solid var(--navy);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Space Grotesk', sans-serif;
+    box-shadow: 3px 3px 0 var(--navy);
+  }
+
+  .btn:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 5px 5px 0 var(--navy);
+  }
+
+  .btn:active {
+    transform: translate(0, 0);
+    box-shadow: 1px 1px 0 var(--navy);
+  }
+
+  .btn-primary {
+    background: var(--coral);
+    color: white;
+  }
+
+  .btn-secondary {
+    background: var(--teal);
+    color: white;
+  }
+
+  /* Layout */
+  .game-container {
+    display: grid;
+    grid-template-columns: 550px minmax(500px, 600px) 320px;
+    gap: 1.5rem;
+    padding: 1.5rem;
+    max-width: 1600px;
+    margin: 0 auto;
+    justify-content: center;
+  }
+
+  /* Cards */
+  .card {
+    background: linear-gradient(135deg, var(--bg-card), #fcfcfc);
+    border: 2px solid var(--navy);
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: var(--shadow-lg);
+    position: relative;
+    transition: all 0.3s;
+  }
+  
+  .card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-xl);
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    width: 20px;
+    height: 20px;
+    background: var(--yellow);
+    border-radius: 50%;
+    z-index: -1;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+  }
+
+  .card-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  /* 3D Board Container */
+  .board-container {
+    position: relative;
+  }
+
+  #canvas3d {
+    width: 100%;
+    height: 450px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #f5f5f5, #e0e0e0);
+  }
+
+  /* Camera Controls */
+  .camera-controls {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    justify-content: center;
+  }
+
+  .cam-btn {
+    padding: 0.5rem 1rem;
+    background: var(--bg-card);
+    border: 2px solid var(--navy);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    transition: all 0.2s;
+  }
+
+  .cam-btn:hover {
+    background: var(--teal);
+    color: white;
+  }
+
+  /* Compact Leaderboard */
+  .compact-leaderboard {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background: var(--gradient-teal);
+    border-radius: 8px;
+    margin-top: 1rem;
+    overflow-x: auto;
+  }
+  
+  .leader-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-card);
+    border: 2px solid var(--navy);
+    border-radius: 20px;
+    white-space: nowrap;
+    font-size: 0.85rem;
+    font-weight: 600;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.2s;
+  }
+  
+  .leader-chip:hover {
+    transform: scale(1.05);
+    box-shadow: var(--shadow-md);
+  }
+  
+  .leader-chip.first {
+    background: var(--gradient-coral);
+    color: white;
+    border-color: var(--coral);
+  }
+  
+  .leader-rank {
+    width: 22px;
+    height: 22px;
+    background: var(--navy);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+  }
+  
+  .leader-chip.first .leader-rank {
+    background: white;
+    color: var(--coral);
+  }
+
+  /* Camera Info Bar */
+  .camera-info {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem;
+    background: rgba(42, 75, 141, 0.1);
+    border-radius: 6px;
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+  }
+  
+  .camera-mode {
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  /* Projects Grid */
+  .projects-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+  }
+
+  .project-card {
+    background: linear-gradient(135deg, var(--bg-card), #fcfcfc);
+    border: 3px solid var(--navy);
+    border-radius: 8px;
+    padding: 1rem;
+    min-height: 180px;
+    position: relative;
+    transition: all 0.2s;
+    cursor: move;
+  }
+
+  .project-card::after {
+    content: '';
+    position: absolute;
+    bottom: -5px;
+    left: 10px;
+    right: 10px;
+    height: 5px;
+    background: var(--gradient-teal);
+    border-radius: 2px;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .project-card.drag-over {
+    transform: scale(1.05);
+    border-color: var(--teal);
+    box-shadow: 0 0 20px rgba(101, 195, 186, 0.4);
+  }
+  
+  .project-card.drag-over::after {
+    opacity: 1;
+  }
+
+  .project-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-xl);
+  }
+
+  .project-tier {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    background: var(--yellow);
+    color: var(--text-primary);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .project-name {
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0.75rem;
+  }
+
+  .project-cost {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .energy-badge {
+    background: var(--bg-main);
+    border: 1px solid var(--navy);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .bid-indicators {
+    position: absolute;
+    bottom: 0.5rem;
+    left: 0.5rem;
+    display: flex;
+    gap: 0.25rem;
+  }
+
+  .bid-chip {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: white;
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* Hand Cards - Balatro Style */
+  .hand-container {
+    display: flex;
+    padding: 1rem;
+    justify-content: center;
+    min-height: 200px;
+    align-items: center;
+    overflow: visible;
+  }
+  
+  .hand-container .action-card {
+    margin-right: -45px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+  }
+  
+  .hand-container .action-card:last-child {
+    margin-right: 0;
+  }
+
+  .action-card {
+    background: linear-gradient(135deg, var(--bg-card), #f8f8f8);
+    border: 2px solid var(--navy);
+    border-radius: 8px;
+    padding: 1rem;
+    min-width: 120px;
+    width: 120px;
+    height: 170px;
+    cursor: grab;
+    transition: all 0.2s;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    box-shadow: var(--shadow-md);
+    flex-shrink: 0;
+  }
+
+  .action-card:hover {
+    transform: translateY(-25px) rotate(-3deg) scale(1.05);
+    z-index: 10;
+    box-shadow: var(--shadow-xl);
+    border-color: var(--coral);
+  }
+
+  .action-card.dragging {
+    cursor: grabbing;
+    opacity: 0.5;
+    transform: rotate(5deg);
+  }
+
+  .card-name {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  .card-energy {
+    display: flex;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+  }
+
+  /* Distraction Panel */
+  .distraction-panel {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-card);
+    border: 2px solid var(--navy);
+    border-radius: 12px;
+    padding: 1rem;
+    display: flex;
+    gap: 0.75rem;
+    box-shadow: var(--shadow-lg);
+    z-index: 100;
+  }
+
+  .distraction-card {
+    width: 80px;
+    height: 110px;
+    background: linear-gradient(135deg, var(--coral), var(--yellow));
+    border: 2px solid var(--navy);
+    border-radius: 6px;
+    padding: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .distraction-card .card-back {
+    text-align: center;
+  }
+
+  .distraction-card .card-owner {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: white;
+    margin-bottom: 0.5rem;
+  }
+
+  .distraction-card .card-icon {
+    font-size: 2rem;
+  }
+
+  .distraction-card .card-content {
+    display: none;
+    position: absolute;
+    inset: 0;
+    padding: 0.5rem;
+    background: inherit;
+    border-radius: 4px;
+  }
+
+  .distraction-card:hover {
+    transform: translateY(-15px) scale(1.4);
+    z-index: 1000;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .distraction-card:hover .card-back {
+    display: none;
+  }
+
+  .distraction-card:hover .card-content {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  /* Players Sidebar */
+  .players-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .player-card {
+    background: var(--bg-card);
+    border: 2px solid var(--navy);
+    border-radius: 8px;
+    padding: 1rem;
+    position: relative;
+    transition: all 0.2s;
+  }
+
+  .player-card.active {
+    border-color: var(--coral);
+    box-shadow: 0 0 0 3px rgba(231, 111, 81, 0.2);
+  }
+
+  .player-card.active::before {
+    content: 'ACTIVE';
+    position: absolute;
+    top: -10px;
+    right: 1rem;
+    background: var(--coral);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.6rem;
+    font-weight: 700;
+  }
+
+  .player-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .player-avatar {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, var(--teal), var(--coral));
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+  }
+
+  .player-info {
+    flex: 1;
+  }
+
+  .player-name {
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  .player-breed {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+  }
+
+  .hidden-agenda {
+    margin-top: 0.5rem;
+    padding: 0.5rem;
+    background: var(--bg-main);
+    border-radius: 4px;
+    font-size: 0.8rem;
+    border: 1px dashed var(--navy);
+  }
+
+  .hidden-agenda.concealed {
+    filter: blur(6px);
+    user-select: none;
+  }
+  
+  /* Tooltips */
+  .tooltip {
+    position: absolute;
+    background: var(--bg-dark);
+    color: white;
+    padding: 0.75rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    z-index: 1000;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+    max-width: 250px;
+    box-shadow: var(--shadow-xl);
+  }
+  
+  .tooltip.show {
+    opacity: 1;
+  }
+  
+  .breed-info {
+    cursor: help;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 2px;
+  }
+
+  /* Game Notification */
+  .notification {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--bg-card);
+    border: 3px solid var(--navy);
+    border-radius: 12px;
+    padding: 2rem;
+    z-index: 2000;
+    display: none;
+    box-shadow: var(--shadow-lg);
+    text-align: center;
+    min-width: 300px;
+  }
+
+  .notification.show {
+    display: block;
+    animation: popIn 0.3s ease-out;
+  }
+
+  @keyframes popIn {
+    from {
+      transform: translate(-50%, -50%) scale(0.8);
+      opacity: 0;
+    }
+    to {
+      transform: translate(-50%, -50%) scale(1);
+      opacity: 1;
+    }
+  }
+
+  .notification-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--coral);
+    margin-bottom: 0.5rem;
+  }
+
+  .notification-message {
+    color: var(--text-primary);
+  }
+
+  /* Target Selection Modal */
+  .target-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--bg-card);
+    border: 3px solid var(--navy);
+    border-radius: 12px;
+    padding: 2rem;
+    z-index: 1500;
+    display: none;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .target-modal.active {
+    display: block;
+  }
+
+  .target-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 1.5rem;
+    text-align: center;
+  }
+
+  .target-players {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .target-player {
+    background: var(--bg-main);
+    border: 2px solid var(--navy);
+    border-radius: 8px;
+    padding: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+  }
+
+  .target-player:hover {
+    background: var(--teal);
+    color: white;
+    transform: scale(1.05);
+  }
+
+  /* Results Log */
+  .results-log {
+    max-height: 150px;
+    overflow-y: auto;
+    background: var(--bg-main);
+    border: 1px solid var(--navy);
+    border-radius: 6px;
+    padding: 0.5rem;
+    margin-top: 1rem;
+  }
+
+  .result-entry {
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
+    background: var(--bg-card);
+    border-radius: 4px;
+    font-size: 0.85rem;
+  }
+
+  /* Turn Controls */
+  .turn-controls {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    margin-top: 1rem;
+  }
+
+  .cards-indicator {
+    padding: 0.5rem 1rem;
+    background: var(--bg-main);
+    border: 2px solid var(--navy);
+    border-radius: 6px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  /* Responsive */
+  @media (max-width: 1400px) {
+    .game-container {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="grid-bg"></div>
+<div class="geo-decor geo-1"></div>
+<div class="geo-decor geo-2"></div>
+<div class="geo-decor geo-3"></div>
+
+<header>
+  <div class="header-content">
+    <div class="logo-section">
+      <div class="logo-badge">🐕</div>
+      <div>
+        <h1>Dogs With Jobs</h1>
+        <div class="subtitle">Corporate Ladder Championship</div>
+      </div>
+    </div>
+    <div class="header-status">
+      <div class="status-badge">
+        <span style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary);">TURN</span>
+        <span id="turnDisplay" style="font-size: 1.25rem; font-weight: 700; background: var(--gradient-coral); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">1</span>
+      </div>
+      <div class="status-badge">
+        <span style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary);">PHASE</span>
+        <span id="phaseDisplay" style="font-size: 1rem; font-weight: 700; color: var(--text-primary);">Setup</span>
+      </div>
+      <div class="status-badge">
+        <span style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary);">LEADER</span>
+        <span id="leaderDisplay" style="font-size: 1rem; font-weight: 700; color: var(--text-primary);">-</span>
+      </div>
+    </div>
+    <div class="gear-menu">
+      <button class="gear-btn" onclick="game.toggleGearMenu()">⚙️</button>
+      <div class="gear-dropdown" id="gearDropdown">
+        <button onclick="game.newGame()">New Game</button>
+        <button onclick="game.saveGame()">Save Game</button>
+        <button onclick="game.loadGame()">Load Game</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="game-container">
+  <!-- Board Section -->
+  <div>
+    <div class="card board-container">
+      <h2 class="card-title">🏢 Corporate Ladder</h2>
+      <div id="canvas3d"></div>
+      <div class="camera-controls">
+        <button class="cam-btn" onclick="game.setCameraView('top')">Top View</button>
+        <button class="cam-btn" onclick="game.setCameraView('side')">Side View</button>
+        <button class="cam-btn" onclick="game.setCameraView('follow')">Follow Leader</button>
+        <button class="cam-btn" onclick="game.resetCamera()">Reset</button>
+      </div>
+    </div>
+    
+    <div class="compact-leaderboard" id="compactLeaderboard"></div>
+    
+    
+    <div class="results-log" id="resultsLog"></div>
+  </div>
+
+  <!-- Center Section -->
+  <div>
+    <div class="card">
+      <h2 class="card-title">📋 Active Projects - Round <span id="roundNum">1</span>/3</h2>
+      <div class="projects-grid" id="projectsGrid"></div>
+    </div>
+
+    <div class="card">
+      <h2 class="card-title">🎴 <span id="currentPlayerName">Player</span>'s Hand</h2>
+      <div class="cards-indicator" id="cardsIndicator">Cards Played: 0/1</div>
+      <div class="hand-container" id="handContainer"></div>
+      <div class="turn-controls">
+        <button class="btn btn-primary" id="endBiddingBtn" onclick="game.endBidding()">End Bidding</button>
+        <button class="btn btn-secondary" id="endDistractionBtn" onclick="game.endDistraction()" style="display: none;">Done with Distractions</button>
+        <button class="btn" onclick="game.undoLastBid()">Undo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Players Sidebar -->
+  <div class="players-sidebar" id="playersSidebar"></div>
+</div>
+
+<!-- Distraction Panel -->
+<div class="distraction-panel" id="distractionPanel"></div>
+
+<!-- Game Notification -->
+<div class="notification" id="notification">
+  <div class="notification-title" id="notificationTitle">Notification</div>
+  <div class="notification-message" id="notificationMessage">Message</div>
+</div>
+
+<!-- Target Selection Modal -->
+<div class="target-modal" id="targetModal">
+  <div class="target-title">Select Target Player</div>
+  <div class="target-players" id="targetPlayers"></div>
+  <button class="btn" onclick="game.cancelTargeting()" style="width: 100%; margin-top: 1rem;">Cancel</button>
+</div>
+
+<!-- Setup Modal -->
+<div class="target-modal" id="setupModal" style="display: none;">
+  <div class="target-title">New Game Setup</div>
+  <div style="margin-bottom: 1.5rem;">
+    <label style="display: block; margin-bottom: 0.5rem;">Number of Players</label>
+    <select id="playerCount" class="btn" style="width: 100%;">
+      <option value="2">2 Players</option>
+      <option value="3">3 Players</option>
+      <option value="4" selected>4 Players</option>
+      <option value="5">5 Players</option>
+      <option value="6">6 Players</option>
+    </select>
+  </div>
+  <div id="playerSetupFields"></div>
+  <button class="btn btn-primary" onclick="game.startNewGame()" style="width: 100%; margin-top: 1rem;">Start Game</button>
+</div>
+
+<script>
+// 3D Board Manager
+class Board3D {
+  constructor() {
+    this.scene = null;
+    this.camera = null;
+    this.renderer = null;
+    this.controls = null;
+    this.spaces = [];
+    this.meeples = [];
+    this.cameraMode = 'default';
+    this.init();
+  }
+
+  init() {
+    const container = document.getElementById('canvas3d');
+    if (!container) {
+      console.error('Canvas3d container not found!');
+      return;
+    }
+    
+    // Use fixed width if offsetWidth is 0
+    const width = container.offsetWidth || 500;
+    const height = 450;
+    
+
+    // Scene
+    this.scene = new THREE.Scene();
+    this.scene.background = new THREE.Color(0xfaf0e6);
+
+    // Camera
+    this.camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000);
+    this.camera.position.set(0, 10, 10);
+    this.camera.lookAt(0, 0, 0);
+
+    // Renderer
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    this.renderer.setSize(width, height);
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.setClearColor(0xfaf0e6, 1);
+    container.appendChild(this.renderer.domElement);
+
+    // OrbitControls
+    this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+    this.controls.enableDamping = true;
+    this.controls.dampingFactor = 0.05;
+    this.controls.maxPolarAngle = Math.PI / 2;
+
+    // Lights
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    this.scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.4);
+    directionalLight.position.set(5, 10, 5);
+    directionalLight.castShadow = true;
+    this.scene.add(directionalLight);
+
+    // Create board
+    this.createBoard();
+    
+    // Animation loop
+    this.animate();
+  }
+
+  createBoard() {
+    const numSpaces = 50;
+    const radius = 6;
+    
+    // Base platform
+    const platformGeometry = new THREE.CylinderGeometry(radius + 1, radius + 1, 0.2, 32);
+    const platformMaterial = new THREE.MeshPhongMaterial({ color: 0x2a4b8d });
+    const platform = new THREE.Mesh(platformGeometry, platformMaterial);
+    platform.receiveShadow = true;
+    this.scene.add(platform);
+
+    // Create spaces
+    for (let i = 0; i < numSpaces; i++) {
+      const angle = (i / numSpaces) * Math.PI * 2;
+      const x = Math.cos(angle) * radius;
+      const z = Math.sin(angle) * radius;
+      const y = (i / numSpaces) * 3 + 0.1; // Spiral upward, slight offset to avoid z-fighting
+
+      // Space
+      const geometry = new THREE.BoxGeometry(0.6, 0.2, 0.6);
+      const material = new THREE.MeshPhongMaterial({
+        color: this.getSpaceColor(i + 1)
+      });
+      const space = new THREE.Mesh(geometry, material);
+      space.position.set(x, y, z);
+      space.castShadow = true;
+      space.receiveShadow = true;
+      space.userData = { index: i + 1 };
+      
+      this.spaces.push(space);
+      this.scene.add(space);
+
+      // Number label
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+      canvas.width = 64;
+      canvas.height = 64;
+      context.fillStyle = '#ffffff';
+      context.font = 'bold 40px Arial';
+      context.textAlign = 'center';
+      context.textBaseline = 'middle';
+      context.fillText(i + 1, 32, 32);
+      
+      const texture = new THREE.CanvasTexture(canvas);
+      const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
+      const sprite = new THREE.Sprite(spriteMaterial);
+      sprite.position.set(x, y + 0.5, z);
+      sprite.scale.set(0.5, 0.5, 1);
+      this.scene.add(sprite);
+    }
+
+    // CEO platform
+    const ceoGeometry = new THREE.ConeGeometry(1, 1, 4);
+    const ceoMaterial = new THREE.MeshPhongMaterial({ 
+      color: 0xffd700,
+      emissive: 0xffd700,
+      emissiveIntensity: 0.2
+    });
+    const ceoPlatform = new THREE.Mesh(ceoGeometry, ceoMaterial);
+    ceoPlatform.position.set(0, 4, 0);
+    ceoPlatform.castShadow = true;
+    this.scene.add(ceoPlatform);
+  }
+
+  getSpaceColor(position) {
+    if (position <= 10) return 0x65c3ba; // Teal - Intern
+    if (position <= 20) return 0xf4a261; // Yellow - Junior  
+    if (position <= 30) return 0xe9c46a; // Pink - Senior
+    if (position <= 40) return 0xe76f51; // Coral - Management
+    if (position < 50) return 0x2a4b8d; // Navy - Executive
+    return 0xffd700; // Gold - CEO
+  }
+
+  updateMeeples(players) {
+    // Clear old meeples
+    this.meeples.forEach(m => this.scene.remove(m));
+    this.meeples = [];
+
+    // Add new meeples
+    players.forEach((player, index) => {
+      const position = Math.min(50, Math.max(1, player.position));
+      const space = this.spaces[position - 1];
+      
+      if (space) {
+        const geometry = new THREE.ConeGeometry(0.4, 0.8, 8);
+        const material = new THREE.MeshPhongMaterial({
+          color: this.getPlayerColor(index),
+          emissive: this.getPlayerColor(index),
+          emissiveIntensity: 0.3
+        });
+        const meeple = new THREE.Mesh(geometry, material);
+        
+        // Offset for multiple players in circle
+        const angle = (index / players.length) * Math.PI * 2;
+        const radius = 0.3;
+        meeple.position.set(
+          space.position.x + Math.cos(angle) * radius,
+          space.position.y + 0.5,
+          space.position.z + Math.sin(angle) * radius
+        );
+        meeple.castShadow = true;
+        meeple.receiveShadow = true;
+        
+        this.meeples.push(meeple);
+        this.scene.add(meeple);
+      }
+    });
+  }
+
+  getPlayerColor(index) {
+    const colors = [0xe76f51, 0x65c3ba, 0xf4a261, 0xe9c46a, 0x2a4b8d, 0x8b9dc3];
+    return colors[index % colors.length];
+  }
+
+  setCameraView(mode) {
+    this.cameraMode = mode;
+    
+    switch(mode) {
+      case 'top':
+        this.camera.position.set(0, 15, 0);
+        this.camera.lookAt(0, 0, 0);
+        break;
+      case 'side':
+        this.camera.position.set(12, 5, 0);
+        this.camera.lookAt(0, 2, 0);
+        break;
+      case 'follow':
+        if (this.meeples[0]) {
+          const leader = this.meeples[0];
+          this.camera.position.set(
+            leader.position.x + 5,
+            leader.position.y + 5,
+            leader.position.z + 5
+          );
+          this.camera.lookAt(leader.position);
+        }
+        break;
+      default:
+        this.resetCamera();
+    }
+  }
+
+  resetCamera() {
+    this.camera.position.set(0, 10, 10);
+    this.camera.lookAt(0, 0, 0);
+    this.cameraMode = 'default';
+  }
+
+  animate() {
+    requestAnimationFrame(() => this.animate());
+    
+    // Update controls
+    this.controls.update();
+    
+    // Rotate meeples
+    this.meeples.forEach(meeple => {
+      meeple.rotation.y += 0.02;
+    });
+    
+    // Auto-rotate in follow mode
+    if (this.cameraMode === 'follow' && this.meeples[0]) {
+      const time = Date.now() * 0.001;
+      const radius = 8;
+      this.camera.position.x = this.meeples[0].position.x + Math.cos(time) * radius;
+      this.camera.position.z = this.meeples[0].position.z + Math.sin(time) * radius;
+      this.camera.position.y = this.meeples[0].position.y + 5;
+      this.camera.lookAt(this.meeples[0].position);
+    }
+    
+    this.renderer.render(this.scene, this.camera);
+  }
+}
+
+// Main Game Class
+class DogsWithJobsGame {
+  constructor() {
+    this.board3D = null;
+    this.state = {
+      players: [],
+      currentPlayer: 0,
+      firstPlayer: 0,
+      turn: 1,
+      phase: 'setup',
+      round: 1,
+      projects: [],
+      actionDeck: [],
+      distractionDeck: [],
+      projectDeck: [],
+      winner: null,
+      cardsPlayedThisRound: 0,
+      bidsThisTurn: []
+    };
+    
+    this.draggedCard = null;
+    
+    setTimeout(() => {
+      this.init();
+    }, 100);
+  }
+
+  init() {
+    this.board3D = new Board3D();
+    this.setupEventListeners();
+    this.loadDecks();
+    this.showSetupModal();
+    this.createBreedTooltip();
+  }
+  
+  createBreedTooltip() {
+    const tooltip = document.createElement('div');
+    tooltip.id = 'breedTooltip';
+    tooltip.className = 'tooltip';
+    tooltip.style.display = 'none';
+    document.body.appendChild(tooltip);
+  }
+  
+  showBreedTooltip(event, playerId) {
+    const tooltip = document.getElementById('breedTooltip');
+    const select = event.target;
+    const breed = select.value;
+    const breedPowers = {
+      'Labrador': 'Friendly Pup: Can play 2 cards per bidding round instead of 1',
+      'Border Collie': 'Smart Doggo: Draws 6 cards at start instead of 5',
+      'Beagle': 'Curious Sniffer: Can peek at one project each turn',
+      'German Shepherd': 'Alert Guardian: Immune to one distraction per turn'
+    };
+    
+    tooltip.innerHTML = `<strong>${breed}</strong><br>${breedPowers[breed] || 'No special power'}`;
+    tooltip.style.display = 'block';
+    tooltip.style.left = (event.pageX + 10) + 'px';
+    tooltip.style.top = (event.pageY + 10) + 'px';
+  }
+  
+  hideBreedTooltip() {
+    const tooltip = document.getElementById('breedTooltip');
+    if (tooltip) tooltip.style.display = 'none';
+  }
+  
+  toggleGearMenu() {
+    const dropdown = document.getElementById('gearDropdown');
+    dropdown.classList.toggle('open');
+    
+    // Close on click outside
+    if (dropdown.classList.contains('open')) {
+      setTimeout(() => {
+        document.addEventListener('click', (e) => {
+          if (!e.target.closest('.gear-menu')) {
+            dropdown.classList.remove('open');
+          }
+        }, { once: true });
+      }, 100);
+    }
+  }
+  
+  showBreedPowerTooltip(event, breed) {
+    const tooltip = document.getElementById('breedTooltip');
+    if (!tooltip) {
+      this.createBreedTooltip();
+      return this.showBreedPowerTooltip(event, breed);
+    }
+    
+    const breedPowers = {
+      'Labrador': 'Friendly Pup: Can play 2 cards per bidding round instead of 1',
+      'Border Collie': 'Smart Doggo: Draws 6 cards at start instead of 5',
+      'Beagle': 'Curious Sniffer: Can peek at one project each turn',
+      'German Shepherd': 'Alert Guardian: Immune to one distraction per turn'
+    };
+    
+    tooltip.innerHTML = `<strong>${breed} Power</strong><br>${breedPowers[breed] || 'No special power'}`;
+    tooltip.style.display = 'block';
+    tooltip.style.left = (event.pageX + 10) + 'px';
+    tooltip.style.top = (event.pageY - 30) + 'px';
+    tooltip.classList.add('show');
+  }
+  
+  showAgendaTooltip(event, playerIndex) {
+    const player = this.state.players[playerIndex];
+    if (!player || !player.agenda) return;
+    
+    const tooltip = document.getElementById('breedTooltip');
+    if (!tooltip) {
+      this.createBreedTooltip();
+      return this.showAgendaTooltip(event, playerIndex);
+    }
+    
+    // Show the agenda's TEXT (requirements) in the tooltip
+    const agendaText = player.agenda?.text || 'Unknown requirements';
+    tooltip.innerHTML = `<strong>Requirements:</strong><br>${agendaText}`;
+    tooltip.style.display = 'block';
+    tooltip.style.left = (event.pageX + 10) + 'px';
+    tooltip.style.top = (event.pageY - 30) + 'px';
+    tooltip.classList.add('show');
+  }
+
+  setupEventListeners() {
+    document.getElementById('playerCount').addEventListener('change', (e) => {
+      this.updatePlayerSetupFields(e.target.value);
+    });
+
+    // Global drag events
+    document.addEventListener('dragover', (e) => e.preventDefault());
+    document.addEventListener('drop', (e) => e.preventDefault());
+  }
+
+  showNotification(title, message, duration = 2500) {
+    const notification = document.getElementById('notification');
+    document.getElementById('notificationTitle').textContent = title;
+    document.getElementById('notificationMessage').textContent = message;
+    notification.classList.add('show');
+    
+    setTimeout(() => {
+      notification.classList.remove('show');
+    }, duration);
+  }
+
+  setCameraView(mode) {
+    if (this.board3D) {
+      this.board3D.setCameraView(mode);
+    }
+  }
+
+  resetCamera() {
+    if (this.board3D) {
+      this.board3D.resetCamera();
+    }
+  }
+
+  loadDecks() {
+    this.state.actionDeck = this.generateActionDeck();
+    this.state.distractionDeck = this.generateDistractionDeck();
+    this.state.projectDeck = this.generateProjectDeck();
+  }
+
+  generateActionDeck() {
+    const actions = [
+      { name: 'Team Meeting', energy: { comm: 2 }, category: 'Communication' },
+      { name: 'Email Blast', energy: { comm: 1, focus: 1 }, category: 'Communication' },
+      { name: 'Deep Focus', energy: { focus: 2 }, category: 'Focus' },
+      { name: 'Research', energy: { focus: 3 }, category: 'Focus' },
+      { name: 'Networking', energy: { social: 2 }, category: 'Social' },
+      { name: 'Team Building', energy: { social: 1, phys: 1 }, category: 'Social' },
+      { name: 'Heavy Lifting', energy: { phys: 2 }, category: 'Physical' },
+      { name: 'Office Sprint', energy: { phys: 1, focus: 1 }, category: 'Physical' }
+    ];
+
+    const deck = [];
+    actions.forEach(card => {
+      for (let i = 0; i < 5; i++) {
+        deck.push({
+          ...card,
+          id: `action_${deck.length}`,
+          energy: { comm: 0, focus: 0, social: 0, phys: 0, ...card.energy }
+        });
+      }
+    });
+
+    return this.shuffle(deck);
+  }
+
+  generateDistractionDeck() {
+    const distractions = [
+      { name: 'Squirrel!', type: 'Instant', effect: 'Target discards 1 bid', targetRequired: true },
+      { name: 'Fire Drill', type: 'End-of-Turn', effect: 'All reveal bids', targetRequired: false },
+      { name: 'Coffee Spill', type: 'Instant', effect: 'Target skips round', targetRequired: true }
+    ];
+
+    const deck = [];
+    distractions.forEach(card => {
+      for (let i = 0; i < 4; i++) {
+        deck.push({ ...card, id: `distraction_${deck.length}` });
+      }
+    });
+
+    return this.shuffle(deck);
+  }
+
+  generateProjectDeck() {
+    const projects = [
+      { name: 'File Reports', tier: 'Entry', cost: { focus: 2 }, reward: 1 },
+      { name: 'Client Call', tier: 'Entry', cost: { comm: 2 }, reward: 1 },
+      { name: 'Team Lead', tier: 'Management', cost: { comm: 2, social: 1 }, reward: 2 },
+      { name: 'Strategy Session', tier: 'Executive', cost: { focus: 3, comm: 1 }, reward: 3 }
+    ];
+
+    const deck = [];
+    projects.forEach(card => {
+      for (let i = 0; i < 3; i++) {
+        deck.push({
+          ...card,
+          id: `project_${deck.length}`,
+          cost: { comm: 0, focus: 0, social: 0, phys: 0, ...card.cost }
+        });
+      }
+    });
+
+    return this.shuffle(deck);
+  }
+
+  shuffle(array) {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  }
+
+  showSetupModal() {
+    document.getElementById('setupModal').style.display = 'block';
+    this.updatePlayerSetupFields(4);
+  }
+
+  updatePlayerSetupFields(count) {
+    const container = document.getElementById('playerSetupFields');
+    container.innerHTML = '';
+    
+    const breeds = ['Labrador', 'Border Collie', 'Beagle', 'German Shepherd'];
+    const breedPowers = {
+      'Labrador': 'Friendly Pup: Can play 2 cards per bidding round',
+      'Border Collie': 'Smart Doggo: Draws 6 cards instead of 5',
+      'Beagle': 'Curious Sniffer: Can peek at one project each turn',
+      'German Shepherd': 'Alert Guardian: Immune to one distraction per turn'
+    };
+    
+    for (let i = 0; i < count; i++) {
+      const field = document.createElement('div');
+      field.style.marginBottom = '1rem';
+      field.innerHTML = `
+        <label style="display: block; margin-bottom: 0.5rem;">Player ${i + 1}</label>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+          <input type="text" class="btn" id="player${i}Name" value="Player ${i + 1}" style="padding: 0.5rem;">
+          <select class="btn breed-select" id="player${i}Breed" style="padding: 0.5rem;" onmouseover="game.showBreedTooltip(event, '${i}')" onmouseout="game.hideBreedTooltip()">
+            ${breeds.map(b => `<option value="${b}">${b}</option>`).join('')}
+          </select>
+        </div>
+      `;
+      container.appendChild(field);
+    }
+  }
+
+  startNewGame() {
+    const count = parseInt(document.getElementById('playerCount').value);
+    
+    // Create players
+    this.state.players = [];
+    for (let i = 0; i < count; i++) {
+      const name = document.getElementById(`player${i}Name`).value;
+      const breed = document.getElementById(`player${i}Breed`).value;
+      
+      this.state.players.push({
+        id: `player_${i}`,
+        name: name,
+        breed: breed,
+        position: 1,
+        handAction: [],
+        handDistraction: [],
+        bids: [[], [], []],
+        agenda: { 
+          name: ['First to 30', 'Most Projects', 'Perfect Round', 'Underdog Victory'][i % 4],
+          text: ['Be first to reach space 30', 'Complete the most projects (min 5)', 'Win all projects in a single turn', 'Win while being in last place for 3 consecutive turns'][i % 4]
+        }
+      });
+    }
+    
+    // Deal initial cards
+    this.dealInitialCards();
+    
+    // Setup projects
+    this.state.projects = [];
+    for (let i = 0; i < 3; i++) {
+      if (this.state.projectDeck.length > 0) {
+        this.state.projects.push(this.state.projectDeck.shift());
+      }
+    }
+    
+    this.state.phase = 'bidding';
+    this.state.currentPlayer = 0;
+    this.state.firstPlayer = 0;
+    
+    document.getElementById('setupModal').style.display = 'none';
+    this.render();
+    this.updateHeaderStatus();
+    this.showNotification('Game Started!', 'Good luck climbing the corporate ladder!');
+  }
+
+  dealInitialCards() {
+    this.state.players.forEach(player => {
+      for (let i = 0; i < 5; i++) {
+        if (this.state.actionDeck.length > 0) {
+          player.handAction.push(this.state.actionDeck.shift());
+        }
+      }
+      if (this.state.distractionDeck.length > 0) {
+        player.handDistraction.push(this.state.distractionDeck.shift());
+      }
+    });
+  }
+
+  render() {
+    this.renderProjects();
+    this.renderHand();
+    this.renderPlayers();
+    this.renderDistractions();
+    this.renderStatus();
+    this.renderLeaderboard();
+    this.updateHeaderStatus();
+    
+    if (this.board3D) {
+      this.board3D.updateMeeples(this.state.players);
+    }
+  }
+
+  renderLeaderboard() {
+    const compact = document.getElementById('compactLeaderboard');
+    if (!compact) return;
+    
+    const sortedPlayers = [...this.state.players].sort((a, b) => b.position - a.position);
+    
+    compact.innerHTML = sortedPlayers.map((player, idx) => `
+      <div class="leaderboard-chip" style="background: ${idx === 0 ? 'var(--gradient-coral)' : idx === 1 ? 'var(--gradient-teal)' : 'var(--gradient-navy)'}; color: white; padding: 0.5rem 1rem; border-radius: 20px; display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 600; box-shadow: var(--shadow-md);">
+        <span style="font-size: 0.9rem;">${idx === 0 ? '👑' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}</span>
+        <span>${player.name}</span>
+        <span style="opacity: 0.9; font-size: 0.85rem;">Lvl ${player.position}</span>
+      </div>
+    `).join('');
+  }
+
+  renderProjects() {
+    const grid = document.getElementById('projectsGrid');
+    grid.innerHTML = '';
+    
+    this.state.projects.forEach((project, index) => {
+      if (!project) return;
+      
+      const card = document.createElement('div');
+      card.className = 'project-card';
+      card.dataset.index = index;
+      
+      // Drop target
+      card.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        card.classList.add('drag-over');
+      });
+      
+      card.addEventListener('dragleave', () => {
+        card.classList.remove('drag-over');
+      });
+      
+      card.addEventListener('drop', (e) => {
+        e.preventDefault();
+        card.classList.remove('drag-over');
+        this.handleCardDrop(index);
+      });
+      
+      const tier = document.createElement('div');
+      tier.className = 'project-tier';
+      tier.textContent = project.tier;
+      
+      const name = document.createElement('div');
+      name.className = 'project-name';
+      name.textContent = project.name;
+      
+      const cost = document.createElement('div');
+      cost.className = 'project-cost';
+      
+      ['comm', 'focus', 'social', 'phys'].forEach(type => {
+        if (project.cost[type] > 0) {
+          for (let i = 0; i < project.cost[type]; i++) {
+            const badge = document.createElement('div');
+            badge.className = 'energy-badge';
+            badge.textContent = this.getEnergyEmoji(type);
+            cost.appendChild(badge);
+          }
+        }
+      });
+      
+      // Bid indicators
+      const bids = document.createElement('div');
+      bids.className = 'bid-indicators';
+      
+      this.state.players.forEach((player, playerIndex) => {
+        player.bids[index].forEach(() => {
+          const chip = document.createElement('div');
+          chip.className = 'bid-chip';
+          chip.style.background = this.getPlayerColorHex(playerIndex);
+          chip.textContent = player.name.charAt(0);
+          bids.appendChild(chip);
+        });
+      });
+      
+      card.appendChild(tier);
+      card.appendChild(name);
+      card.appendChild(cost);
+      card.appendChild(bids);
+      
+      grid.appendChild(card);
+    });
+  }
+
+  renderHand() {
+    const container = document.getElementById('handContainer');
+    container.innerHTML = '';
+    
+    const currentPlayer = this.state.players[this.state.currentPlayer];
+    if (!currentPlayer) return;
+    
+    currentPlayer.handAction.forEach(card => {
+      const cardEl = document.createElement('div');
+      cardEl.className = 'action-card';
+      cardEl.draggable = true;
+      
+      cardEl.addEventListener('dragstart', (e) => {
+        this.draggedCard = card;
+        cardEl.classList.add('dragging');
+      });
+      
+      cardEl.addEventListener('dragend', () => {
+        cardEl.classList.remove('dragging');
+        this.draggedCard = null;
+      });
+      
+      const name = document.createElement('div');
+      name.className = 'card-name';
+      name.textContent = card.name;
+      
+      const energy = document.createElement('div');
+      energy.className = 'card-energy';
+      
+      ['comm', 'focus', 'social', 'phys'].forEach(type => {
+        if (card.energy[type] > 0) {
+          for (let i = 0; i < card.energy[type]; i++) {
+            const span = document.createElement('span');
+            span.textContent = this.getEnergyEmoji(type);
+            energy.appendChild(span);
+          }
+        }
+      });
+      
+      cardEl.appendChild(name);
+      cardEl.appendChild(energy);
+      container.appendChild(cardEl);
+    });
+  }
+
+  handleCardDrop(projectIndex) {
+    if (!this.draggedCard) return;
+    
+    const currentPlayer = this.state.players[this.state.currentPlayer];
+    const maxCards = currentPlayer.breed === 'Labrador' ? 2 : 1;
+    
+    if (this.state.cardsPlayedThisRound >= maxCards) {
+      this.showNotification('Limit Reached', `Maximum ${maxCards} card(s) per round!`);
+      return;
+    }
+    
+    // Place bid
+    currentPlayer.bids[projectIndex].push(this.draggedCard);
+    currentPlayer.handAction = currentPlayer.handAction.filter(c => c.id !== this.draggedCard.id);
+    
+    this.state.cardsPlayedThisRound++;
+    this.state.bidsThisTurn.push({
+      player: this.state.currentPlayer,
+      project: projectIndex,
+      card: this.draggedCard
+    });
+    
+    this.draggedCard = null;
+    this.render();
+    
+    // Auto-end if max cards played
+    if (this.state.cardsPlayedThisRound >= maxCards) {
+      setTimeout(() => {
+        this.showNotification('Turn Complete', `${currentPlayer.name} has played ${maxCards} card(s)`);
+        setTimeout(() => this.endBidding(), 1500);
+      }, 500);
+    }
+  }
+
+  renderPlayers() {
+    const container = document.getElementById('playersSidebar');
+    container.innerHTML = '';
+    
+    // Get rankings
+    const sortedPlayers = [...this.state.players].sort((a, b) => b.position - a.position);
+    const rankings = {};
+    sortedPlayers.forEach((p, idx) => {
+      rankings[p.id] = idx + 1;
+    });
+    
+    this.state.players.forEach((player, index) => {
+      const card = document.createElement('div');
+      card.className = 'player-card';
+      
+      // Add player color background
+      const playerColor = this.getPlayerColorHex(index);
+      card.style.background = `linear-gradient(135deg, ${playerColor}22, ${playerColor}11)`;
+      card.style.borderColor = playerColor;
+      
+      if (index === this.state.currentPlayer) {
+        card.classList.add('active');
+      }
+      
+      // Add ranking badge
+      const rankBadge = document.createElement('div');
+      rankBadge.style.cssText = `
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: ${playerColor};
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 0.9rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      `;
+      rankBadge.textContent = rankings[player.id];
+      
+      const header = document.createElement('div');
+      header.className = 'player-header';
+      
+      const avatar = document.createElement('div');
+      avatar.className = 'player-avatar';
+      avatar.style.background = `linear-gradient(135deg, ${playerColor}, ${playerColor}dd)`;
+      avatar.textContent = '🐕';
+      
+      const info = document.createElement('div');
+      info.className = 'player-info';
+      info.innerHTML = `
+        <div class="player-name">${player.name}</div>
+        <div class="player-breed breed-info" onmouseover="game.showBreedPowerTooltip(event, '${player.breed}')" onmouseout="game.hideBreedTooltip()" style="cursor: help; text-decoration: underline dotted;">${player.breed}</div>
+      `;
+      
+      header.appendChild(avatar);
+      header.appendChild(info);
+      
+      // Hidden agenda - fixed to show name with tooltip for requirements
+      const agenda = document.createElement('div');
+      agenda.className = 'hidden-agenda';
+      if (index === this.state.currentPlayer) {
+        // Show agenda NAME for current player, tooltip shows requirements
+        agenda.innerHTML = `
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <strong>🎯 Secret Agenda:</strong>
+            <span style="cursor: help; text-decoration: underline dotted;" onmouseover="game.showAgendaTooltip(event, ${index})" onmouseout="game.hideBreedTooltip()">
+              ${player.agenda.name}
+            </span>
+          </div>`;
+      } else {
+        // Hidden for other players
+        agenda.classList.add('concealed');
+        agenda.innerHTML = `<strong>🎯 Secret Agenda:</strong> Hidden`;
+      }
+      
+      card.appendChild(rankBadge);
+      card.appendChild(header);
+      card.appendChild(agenda);
+      container.appendChild(card);
+    });
+  }
+
+  renderDistractions() {
+    const container = document.getElementById('distractionPanel');
+    container.innerHTML = '';
+    
+    this.state.players.forEach(player => {
+      player.handDistraction.forEach(card => {
+        const miniCard = document.createElement('div');
+        miniCard.className = 'distraction-card';
+        
+        // Card back
+        const cardBack = document.createElement('div');
+        cardBack.className = 'card-back';
+        cardBack.innerHTML = `
+          <div class="card-owner">${player.name}</div>
+          <div class="card-icon">🎭</div>
+        `;
+        
+        // Card content (hover)
+        const cardContent = document.createElement('div');
+        cardContent.className = 'card-content';
+        cardContent.innerHTML = `
+          <div style="font-weight: 700; font-size: 0.7rem; color: white;">${card.name}</div>
+          <div style="font-size: 0.6rem; color: white; margin-top: 0.5rem;">${card.effect}</div>
+        `;
+        
+        miniCard.appendChild(cardBack);
+        miniCard.appendChild(cardContent);
+        
+        miniCard.addEventListener('click', () => {
+          this.playDistraction(card, player);
+        });
+        
+        container.appendChild(miniCard);
+      });
+    });
+  }
+
+  updateHeaderStatus() {
+    // Update header displays
+    const turnDisplay = document.getElementById('turnDisplay');
+    const phaseDisplay = document.getElementById('phaseDisplay');
+    const leaderDisplay = document.getElementById('leaderDisplay');
+    
+    if (turnDisplay) turnDisplay.textContent = this.state.turn || '1';
+    if (phaseDisplay) {
+      const phaseText = this.state.phase === 'bidding' ? `Bidding (R${this.state.round})` : 
+                       this.state.phase === 'distraction' ? 'Distraction' : 
+                       this.state.phase === 'setup' ? 'Setup' : 'Cleanup';
+      phaseDisplay.textContent = phaseText;
+    }
+    if (leaderDisplay && this.state.players.length > 0) {
+      const leader = [...this.state.players].sort((a, b) => b.position - a.position)[0];
+      leaderDisplay.textContent = leader ? leader.name : '-';
+    }
+  }
+
+  renderStatus() {
+    // Update header displays (not duplicates) 
+    const turnEls = document.querySelectorAll('#turnDisplay');
+    const phaseEls = document.querySelectorAll('#phaseDisplay');
+    const leaderEls = document.querySelectorAll('#leaderDisplay');
+    
+    turnEls.forEach(el => el.textContent = this.state.turn);
+    phaseEls.forEach(el => el.textContent = this.state.phase.toUpperCase());
+    leaderEls.forEach(el => el.textContent = this.state.players[this.state.firstPlayer]?.name || '-');
+    
+    // Update round number if it exists
+    const roundNum = document.getElementById('roundNum');
+    if (roundNum) roundNum.textContent = this.state.round;
+    
+    const currentPlayer = this.state.players[this.state.currentPlayer];
+    if (currentPlayer) {
+      const playerNameEl = document.getElementById('currentPlayerName');
+      if (playerNameEl) playerNameEl.textContent = currentPlayer.name;
+      
+      const cardsIndicator = document.getElementById('cardsIndicator');
+      if (cardsIndicator) {
+        const maxCards = currentPlayer.breed === 'Labrador' ? 2 : 1;
+        cardsIndicator.textContent = `Cards Played: ${this.state.cardsPlayedThisRound}/${maxCards}`;
+      }
+    }
+    
+    // Show/hide buttons
+    const bidBtn = document.getElementById('endBiddingBtn');
+    const distBtn = document.getElementById('endDistractionBtn');
+    
+    bidBtn.style.display = this.state.phase === 'bidding' ? 'block' : 'none';
+    distBtn.style.display = this.state.phase === 'distraction' ? 'block' : 'none';
+  }
+
+  endBidding() {
+    this.state.cardsPlayedThisRound = 0;
+    this.state.currentPlayer = (this.state.currentPlayer + 1) % this.state.players.length;
+    
+    if (this.state.currentPlayer === this.state.firstPlayer) {
+      this.state.round++;
+      
+      if (this.state.round > 3) {
+        this.resolveProjects();
+      } else {
+        this.showNotification('New Round', `Round ${this.state.round} begins!`);
+      }
+    }
+    
+    this.render();
+  }
+
+  resolveProjects() {
+    this.state.projects.forEach((project, index) => {
+      if (!project) return;
+      
+      const bids = [];
+      this.state.players.forEach(player => {
+        const energy = { comm: 0, focus: 0, social: 0, phys: 0 };
+        player.bids[index].forEach(card => {
+          Object.keys(energy).forEach(type => {
+            energy[type] += card.energy[type] || 0;
+          });
+        });
+        bids.push({ player, energy });
+      });
+      
+      // Find winner
+      const qualified = bids.filter(bid => this.meetsRequirement(bid.energy, project.cost));
+      
+      if (qualified.length > 0) {
+        const winner = qualified[0].player;
+        winner.position += project.reward;
+        this.addResult(`${winner.name} won "${project.name}" (+${project.reward} spaces)`);
+      }
+      
+      // Clear bids
+      this.state.players.forEach(player => {
+        player.bids[index] = [];
+      });
+    });
+    
+    // Replace projects
+    this.state.projects = this.state.projects.map(() => {
+      if (this.state.projectDeck.length > 0) {
+        return this.state.projectDeck.shift();
+      }
+      return null;
+    });
+    
+    setTimeout(() => {
+      this.state.phase = 'distraction';
+      this.showNotification('Distraction Phase', 'Players may play distractions');
+      this.render();
+    }, 1500);
+  }
+
+  meetsRequirement(energy, cost) {
+    return Object.keys(cost).every(type => energy[type] >= cost[type]);
+  }
+
+  addResult(message) {
+    const log = document.getElementById('resultsLog');
+    const entry = document.createElement('div');
+    entry.className = 'result-entry';
+    entry.textContent = `Turn ${this.state.turn}: ${message}`;
+    log.insertBefore(entry, log.firstChild);
+    
+    // Keep only last 5
+    while (log.children.length > 5) {
+      log.removeChild(log.lastChild);
+    }
+  }
+
+  playDistraction(card, player) {
+    if (card.targetRequired) {
+      this.showTargetSelection(card, player);
+    } else {
+      this.executeDistraction(null, card, player);
+    }
+  }
+
+  showTargetSelection(card, player) {
+    const container = document.getElementById('targetPlayers');
+    container.innerHTML = '';
+    
+    this.state.players.forEach((target, index) => {
+      if (target !== player) {
+        const btn = document.createElement('div');
+        btn.className = 'target-player';
+        btn.textContent = target.name;
+        btn.addEventListener('click', () => {
+          this.executeDistraction(target, card, player);
+        });
+        container.appendChild(btn);
+      }
+    });
+    
+    document.getElementById('targetModal').classList.add('active');
+    this.pendingDistraction = { card, player };
+  }
+
+  executeDistraction(target, card, player) {
+    // Apply effect
+    this.showNotification('Distraction!', `${player.name} played ${card.name}`);
+    
+    // Remove card
+    player.handDistraction = player.handDistraction.filter(c => c.id !== card.id);
+    
+    document.getElementById('targetModal').classList.remove('active');
+    this.render();
+  }
+
+  cancelTargeting() {
+    document.getElementById('targetModal').classList.remove('active');
+  }
+
+  endDistraction() {
+    this.state.phase = 'cleanup';
+    this.cleanup();
+  }
+
+  cleanup() {
+    // Draw cards
+    this.state.players.forEach(player => {
+      while (player.handAction.length < 5 && this.state.actionDeck.length > 0) {
+        player.handAction.push(this.state.actionDeck.shift());
+      }
+      if (this.state.distractionDeck.length > 0) {
+        player.handDistraction.push(this.state.distractionDeck.shift());
+      }
+    });
+    
+    // Next turn
+    this.state.turn++;
+    this.state.firstPlayer = (this.state.firstPlayer + 1) % this.state.players.length;
+    this.state.currentPlayer = this.state.firstPlayer;
+    this.state.phase = 'bidding';
+    this.state.round = 1;
+    
+    this.render();
+  }
+
+  undoLastBid() {
+    if (this.state.bidsThisTurn.length === 0) return;
+    
+    const lastBid = this.state.bidsThisTurn.pop();
+    const player = this.state.players[lastBid.player];
+    
+    // Remove from project
+    player.bids[lastBid.project] = player.bids[lastBid.project].filter(
+      b => b.id !== lastBid.card.id
+    );
+    
+    // Return to hand
+    player.handAction.push(lastBid.card);
+    
+    this.state.cardsPlayedThisRound = Math.max(0, this.state.cardsPlayedThisRound - 1);
+    
+    this.render();
+  }
+
+  getEnergyEmoji(type) {
+    const emojis = { comm: '💬', focus: '⚡', social: '❤️', phys: '💪' };
+    return emojis[type] || '';
+  }
+
+  getPlayerColorHex(index) {
+    const colors = ['#E76F51', '#65C3BA', '#F4A261', '#E9C46A', '#2A4B8D', '#8B9DC3'];
+    return colors[index % colors.length];
+  }
+
+  saveGame() {
+    localStorage.setItem('dogsWithJobsSave', JSON.stringify(this.state));
+    this.showNotification('Game Saved', 'Your progress has been saved');
+  }
+
+  loadGame() {
+    const saved = localStorage.getItem('dogsWithJobsSave');
+    if (saved) {
+      this.state = JSON.parse(saved);
+      this.render();
+      this.showNotification('Game Loaded', 'Your save has been restored');
+    }
+  }
+
+  newGame() {
+    this.showSetupModal();
+  }
+}
+
+// Initialize game
+const game = new DogsWithJobsGame();
+</script>
+</body>
+</html>

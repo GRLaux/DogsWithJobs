@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Dogs With Jobs - Game</title>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  
+  /* Header */
+  .game-header {
+    background: rgba(255,255,255,0.95);
+    padding: 0.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  }
+  
+  .turn-indicator {
+    font-weight: bold;
+    padding: 0.5rem 1rem;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border-radius: 20px;
+  }
+  
+  /* Game Board */
+  .game-board {
+    display: grid;
+    grid-template-areas:
+      "opponents opponents"
+      "projects projects"
+      "hand hand";
+    gap: 1rem;
+    padding: 1rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  
+  /* Opponents */
+  .opponents-area {
+    grid-area: opponents;
+    display: flex;
+    gap: 1rem;
+    overflow-x: auto;
+    padding: 1rem 0;
+  }
+  
+  .opponent-card {
+    background: white;
+    border-radius: 15px;
+    padding: 1rem;
+    min-width: 150px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    position: relative;
+  }
+  
+  .opponent-card.current-turn {
+    border: 3px solid #ffc107;
+    animation: pulse 2s infinite;
+  }
+  
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(255, 193, 7, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0); }
+  }
+  
+  .opponent-name {
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+  }
+  
+  .opponent-breed {
+    font-size: 0.8rem;
+    color: #666;
+    margin-bottom: 0.5rem;
+  }
+  
+  .opponent-position {
+    background: #f0f0f0;
+    padding: 0.25rem 0.5rem;
+    border-radius: 10px;
+    text-align: center;
+    font-size: 0.9rem;
+  }
+  
+  .opponent-cards {
+    display: flex;
+    gap: 0.25rem;
+    margin-top: 0.5rem;
+  }
+  
+  .card-back {
+    width: 30px;
+    height: 40px;
+    background: linear-gradient(45deg, #ddd, #bbb);
+    border-radius: 5px;
+    border: 1px solid #999;
+  }
+  
+  /* Projects */
+  .projects-area {
+    grid-area: projects;
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+  }
+  
+  .project-card {
+    background: white;
+    border-radius: 15px;
+    padding: 1rem;
+    width: 180px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    transition: transform 0.3s;
+    position: relative;
+  }
+  
+  .project-card.can-drop {
+    border: 2px dashed #4caf50;
+    background: #f1f8e9;
+  }
+  
+  .project-tier {
+    background: #673ab7;
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 5px;
+    font-size: 0.8rem;
+    margin-bottom: 0.5rem;
+    text-align: center;
+  }
+  
+  .project-tier.Management {
+    background: #2196f3;
+  }
+  
+  .project-tier.Executive {
+    background: #ff9800;
+  }
+  
+  .project-name {
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+  }
+  
+  .project-cost {
+    display: flex;
+    gap: 0.25rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  .energy-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+  }
+  
+  .energy-comm { background: #ffeb3b; }
+  .energy-focus { background: #9c27b0; }
+  .energy-social { background: #e91e63; }
+  .energy-phys { background: #4caf50; }
+  
+  .project-reward {
+    text-align: center;
+    font-weight: bold;
+    color: #4caf50;
+  }
+  
+  .project-bids {
+    position: absolute;
+    bottom: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 2px;
+  }
+  
+  .bid-indicator {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  }
+  
+  /* Hand */
+  .hand-area {
+    grid-area: hand;
+    background: rgba(255,255,255,0.95);
+    border-radius: 20px 20px 0 0;
+    padding: 1rem;
+    position: sticky;
+    bottom: 0;
+  }
+  
+  .my-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding: 0.5rem;
+    background: #f5f5f5;
+    border-radius: 10px;
+  }
+  
+  .my-breed {
+    font-weight: bold;
+    color: #673ab7;
+  }
+  
+  .my-agenda {
+    background: #ffc107;
+    padding: 0.25rem 0.5rem;
+    border-radius: 5px;
+    font-size: 0.9rem;
+  }
+  
+  .my-cards {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+  }
+  
+  .action-card {
+    background: white;
+    border: 2px solid #ddd;
+    border-radius: 10px;
+    padding: 0.5rem;
+    min-width: 120px;
+    cursor: move;
+    transition: transform 0.2s;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  
+  .action-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  }
+  
+  .action-card.dragging {
+    opacity: 0.5;
+  }
+  
+  .card-name {
+    font-size: 0.8rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+  }
+  
+  .card-energy {
+    display: flex;
+    gap: 0.25rem;
+  }
+  
+  /* Animations */
+  .bid-animation {
+    position: fixed;
+    width: 60px;
+    height: 80px;
+    background: linear-gradient(45deg, #667eea, #764ba2);
+    border-radius: 8px;
+    z-index: 1000;
+    pointer-events: none;
+    animation: flyToProject 1s ease-in-out;
+  }
+  
+  @keyframes flyToProject {
+    0% {
+      transform: scale(1) rotate(0deg);
+    }
+    50% {
+      transform: scale(1.2) rotate(180deg);
+    }
+    100% {
+      transform: scale(0) rotate(360deg);
+      opacity: 0;
+    }
+  }
+  
+  /* Notifications */
+  .notification {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    padding: 1rem 2rem;
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    z-index: 2000;
+    animation: slideDown 0.3s ease-out;
+  }
+  
+  @keyframes slideDown {
+    from { 
+      transform: translateX(-50%) translateY(-100px);
+      opacity: 0;
+    }
+    to { 
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+  }
+  
+  /* Mobile responsive */
+  @media (max-width: 768px) {
+    .game-board {
+      grid-template-areas:
+        "opponents"
+        "projects"
+        "hand";
+    }
+    
+    .projects-area {
+      flex-direction: column;
+      align-items: center;
+    }
+    
+    .project-card {
+      width: 90%;
+      max-width: 300px;
+    }
+  }
+  
+  /* Buttons */
+  .game-button {
+    padding: 0.5rem 1rem;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
+  
+  .game-button:hover {
+    transform: translateY(-2px);
+  }
+  
+  .game-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+</style>
+</head>
+<body>
+<div class="game-header">
+  <div class="turn-indicator" id="turnIndicator">Turn 1</div>
+  <div id="currentPlayer">Waiting...</div>
+  <button class="game-button" onclick="endTurn()">End Turn</button>
+</div>
+
+<div class="game-board">
+  <!-- Opponents -->
+  <div class="opponents-area" id="opponentsArea"></div>
+  
+  <!-- Projects -->
+  <div class="projects-area" id="projectsArea"></div>
+  
+  <!-- My Hand -->
+  <div class="hand-area">
+    <div class="my-info">
+      <div class="my-breed" id="myBreed">Breed: Loading...</div>
+      <div class="my-agenda" id="myAgenda">Agenda: Loading...</div>
+      <div>Position: <span id="myPosition">1</span></div>
+    </div>
+    <div class="my-cards" id="myCards"></div>
+  </div>
+</div>
+
+<script>
+const socket = io();
+let gameState = null;
+let myPlayerId = null;
+let draggedCard = null;
+
+// Get player ID from session/URL
+const urlParams = new URLSearchParams(window.location.search);
+myPlayerId = urlParams.get('playerId') || sessionStorage.getItem('playerId');
+
+// Load initial game data from session storage
+const initialData = sessionStorage.getItem('gameData');
+if (initialData) {
+  gameState = JSON.parse(initialData);
+  renderGame();
+}
+
+// Reconnect to get latest state
+socket.emit('reconnect-to-game', myPlayerId);
+
+// Socket events
+socket.on('game-started', (data) => {
+  gameState = data;
+  renderGame();
+});
+
+socket.on('game-updated', (data) => {
+  gameState = data;
+  renderGame();
+});
+
+socket.on('opponent-bid', (data) => {
+  showBidAnimation(data);
+});
+
+// Render game
+function renderGame() {
+  if (!gameState) return;
+  
+  // Update header
+  document.getElementById('turnIndicator').textContent = `Turn ${gameState.turn}`;
+  document.getElementById('currentPlayer').textContent = 
+    gameState.isMyTurn ? 'Your Turn!' : `${gameState.currentPlayerName}'s Turn`;
+  
+  // Render opponents
+  renderOpponents();
+  
+  // Render projects
+  renderProjects();
+  
+  // Render my hand
+  renderMyHand();
+}
+
+function renderOpponents() {
+  const area = document.getElementById('opponentsArea');
+  area.innerHTML = '';
+  
+  gameState.opponents.forEach(opp => {
+    const card = document.createElement('div');
+    card.className = 'opponent-card';
+    if (opp.name === gameState.currentPlayerName) {
+      card.classList.add('current-turn');
+    }
+    
+    card.innerHTML = `
+      <div class="opponent-name">${opp.name}</div>
+      <div class="opponent-breed">${opp.breed}</div>
+      <div class="opponent-position">Position: ${opp.position}</div>
+      <div class="opponent-cards">
+        ${Array(opp.handActionSize).fill('<div class="card-back"></div>').join('')}
+      </div>
+    `;
+    
+    area.appendChild(card);
+  });
+}
+
+function renderProjects() {
+  const area = document.getElementById('projectsArea');
+  area.innerHTML = '';
+  
+  gameState.projects.forEach((project, index) => {
+    const card = document.createElement('div');
+    card.className = 'project-card';
+    card.dataset.index = index;
+    
+    // Energy icons
+    const costHtml = Object.entries(project.cost)
+      .filter(([_, val]) => val > 0)
+      .map(([type, val]) => {
+        const emoji = {
+          comm: '💬',
+          focus: '⚡',
+          social: '❤️',
+          phys: '💪'
+        }[type];
+        return Array(val).fill(`<div class="energy-icon energy-${type}">${emoji}</div>`).join('');
+      }).join('');
+    
+    card.innerHTML = `
+      <div class="project-tier ${project.tier}">${project.tier}</div>
+      <div class="project-name">${project.name}</div>
+      <div class="project-cost">${costHtml}</div>
+      <div class="project-reward">+${project.reward} spaces</div>
+      <div class="project-bids" id="bids-${index}"></div>
+    `;
+    
+    // Drop zone for cards
+    card.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      card.classList.add('can-drop');
+    });
+    
+    card.addEventListener('dragleave', () => {
+      card.classList.remove('can-drop');
+    });
+    
+    card.addEventListener('drop', (e) => {
+      e.preventDefault();
+      card.classList.remove('can-drop');
+      if (draggedCard && gameState.isMyTurn) {
+        placeBid(index, draggedCard);
+      }
+    });
+    
+    area.appendChild(card);
+  });
+}
+
+function renderMyHand() {
+  const myData = gameState.myData;
+  
+  // Update info
+  document.getElementById('myBreed').textContent = `${myData.breed}`;
+  document.getElementById('myAgenda').textContent = `🎯 ${myData.agenda.name}`;
+  document.getElementById('myPosition').textContent = myData.position;
+  
+  // Render cards
+  const cardsArea = document.getElementById('myCards');
+  cardsArea.innerHTML = '';
+  
+  myData.handAction.forEach((card, index) => {
+    const cardEl = document.createElement('div');
+    cardEl.className = 'action-card';
+    cardEl.draggable = gameState.isMyTurn;
+    
+    const energyHtml = Object.entries(card.energy)
+      .filter(([_, val]) => val > 0)
+      .map(([type, val]) => {
+        const emoji = {
+          comm: '💬',
+          focus: '⚡',
+          social: '❤️',
+          phys: '💪'
+        }[type];
+        return `<div class="energy-icon energy-${type}">${emoji} ${val}</div>`;
+      }).join('');
+    
+    cardEl.innerHTML = `
+      <div class="card-name">${card.name}</div>
+      <div class="card-energy">${energyHtml}</div>
+    `;
+    
+    cardEl.addEventListener('dragstart', (e) => {
+      draggedCard = card;
+      cardEl.classList.add('dragging');
+    });
+    
+    cardEl.addEventListener('dragend', () => {
+      draggedCard = null;
+      cardEl.classList.remove('dragging');
+    });
+    
+    cardsArea.appendChild(cardEl);
+  });
+}
+
+function placeBid(projectIndex, card) {
+  socket.emit('place-bid', {
+    projectIndex: projectIndex,
+    cardId: card.id
+  });
+  
+  // Remove card from hand locally for immediate feedback
+  gameState.myData.handAction = gameState.myData.handAction.filter(c => c.id !== card.id);
+  renderMyHand();
+}
+
+function showBidAnimation(data) {
+  // Create animated card
+  const animCard = document.createElement('div');
+  animCard.className = 'bid-animation';
+  
+  // Position at opponent
+  const oppCard = document.querySelector(`.opponent-card:has(.opponent-name:contains("${data.playerName}"))`);
+  const projectCard = document.querySelectorAll('.project-card')[data.projectIndex];
+  
+  if (oppCard && projectCard) {
+    const startRect = oppCard.getBoundingClientRect();
+    const endRect = projectCard.getBoundingClientRect();
+    
+    animCard.style.left = startRect.left + 'px';
+    animCard.style.top = startRect.top + 'px';
+    
+    document.body.appendChild(animCard);
+    
+    // Animate to project
+    setTimeout(() => {
+      animCard.style.transition = 'all 1s ease-in-out';
+      animCard.style.left = endRect.left + 'px';
+      animCard.style.top = endRect.top + 'px';
+    }, 10);
+    
+    // Remove after animation
+    setTimeout(() => animCard.remove(), 1100);
+  }
+  
+  showNotification(`${data.playerName} bid on a project!`);
+}
+
+function endTurn() {
+  if (gameState.isMyTurn) {
+    socket.emit('end-turn');
+  }
+}
+
+function showNotification(text) {
+  const notif = document.createElement('div');
+  notif.className = 'notification';
+  notif.textContent = text;
+  document.body.appendChild(notif);
+  setTimeout(() => notif.remove(), 3000);
+}
+</script>
+</body>
+</html>

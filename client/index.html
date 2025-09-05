@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dogs With Jobs - Multiplayer</title>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+  :root {
+    --bg-main: #FAF0E6;
+    --coral: #E76F51;
+    --teal: #65C3BA;
+    --peach: #F4A261;
+    --yellow: #E9C46A;
+    --navy: #2A4B8D;
+    --blue-light: #8B9DC3;
+    
+    --gradient-coral: linear-gradient(135deg, #E76F51, #F4A261);
+    --gradient-teal: linear-gradient(135deg, #65C3BA, #2A4B8D);
+    --gradient-navy: linear-gradient(135deg, #2A4B8D, #1A1A4A);
+    --gradient-rainbow: linear-gradient(45deg, #E76F51, #F4A261, #E9C46A, #65C3BA, #2A4B8D);
+    
+    --shadow-sm: 0 2px 4px rgba(42,75,141,0.1);
+    --shadow-md: 0 4px 12px rgba(42,75,141,0.15);
+    --shadow-lg: 0 8px 24px rgba(42,75,141,0.2);
+    
+    --text-primary: #2A4B8D;
+    --text-secondary: #666;
+    --border-radius: 12px;
+  }
+  
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg-main);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  /* Memphis Background */
+  .grid-bg {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: 
+      repeating-linear-gradient(0deg, transparent, transparent 100px, rgba(101,195,186,0.05) 100px, rgba(101,195,186,0.05) 101px),
+      repeating-linear-gradient(90deg, transparent, transparent 100px, rgba(231,111,81,0.05) 100px, rgba(231,111,81,0.05) 101px);
+    pointer-events: none;
+    z-index: 0;
+  }
+  
+  /* Geometric decorations */
+  .geo-decor {
+    position: fixed;
+    pointer-events: none;
+    z-index: 1;
+  }
+  
+  .geo-1 {
+    top: 10%;
+    right: 5%;
+    width: 80px;
+    height: 80px;
+    background: var(--coral);
+    clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+    opacity: 0.1;
+    animation: float 6s ease-in-out infinite;
+  }
+  
+  .geo-2 {
+    bottom: 15%;
+    left: 3%;
+    width: 60px;
+    height: 60px;
+    background: var(--teal);
+    border-radius: 50%;
+    opacity: 0.1;
+    animation: float 8s ease-in-out infinite reverse;
+  }
+  
+  .geo-3 {
+    top: 50%;
+    right: 10%;
+    width: 100px;
+    height: 100px;
+    background: var(--yellow);
+    transform: rotate(45deg);
+    opacity: 0.08;
+    animation: spin 15s linear infinite;
+  }
+  
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-20px); }
+  }
+  
+  @keyframes spin {
+    from { transform: rotate(45deg); }
+    to { transform: rotate(405deg); }
+  }
+  
+  .container {
+    background: white;
+    border: 4px solid var(--navy);
+    border-radius: var(--border-radius);
+    padding: 2rem;
+    box-shadow: var(--shadow-lg);
+    max-width: 500px;
+    width: 90%;
+    position: relative;
+    z-index: 2;
+  }
+  
+  h1 {
+    background: var(--gradient-rainbow);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 2rem;
+    text-align: center;
+    font-size: 2.5rem;
+    font-weight: 900;
+  }
+  
+  .menu-section {
+    display: none;
+  }
+  
+  .menu-section.active {
+    display: block;
+  }
+  
+  input {
+    width: 100%;
+    padding: 1rem;
+    font-size: 1.1rem;
+    border: 3px solid var(--blue-light);
+    border-radius: var(--border-radius);
+    margin-bottom: 1rem;
+    color: var(--text-primary);
+    transition: border-color 0.3s;
+  }
+  
+  input:focus {
+    outline: none;
+    border-color: var(--coral);
+  }
+  
+  button {
+    width: 100%;
+    padding: 1rem;
+    font-size: 1.1rem;
+    background: var(--gradient-coral);
+    color: white;
+    border: none;
+    border-radius: 25px;
+    cursor: pointer;
+    margin-bottom: 0.5rem;
+    transition: all 0.3s;
+    font-weight: bold;
+    box-shadow: var(--shadow-md);
+  }
+  
+  button:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+  }
+  
+  button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
+  button.secondary {
+    background: var(--gradient-teal);
+  }
+  
+  .room-code {
+    background: var(--bg-main);
+    border: 3px solid var(--coral);
+    padding: 1rem;
+    border-radius: var(--border-radius);
+    text-align: center;
+    font-size: 2rem;
+    font-weight: bold;
+    letter-spacing: 0.2em;
+    margin: 1rem 0;
+    color: var(--navy);
+  }
+  
+  .players-list {
+    margin: 1rem 0;
+    padding: 1rem;
+    background: var(--bg-main);
+    border: 2px solid var(--blue-light);
+    border-radius: var(--border-radius);
+  }
+  
+  .player-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem;
+    margin: 0.5rem 0;
+    background: white;
+    border: 2px solid var(--blue-light);
+    border-radius: 8px;
+  }
+  
+  .player-ready {
+    background: linear-gradient(135deg, #e6f7f5, white);
+    border-color: var(--teal);
+  }
+  
+  .host-badge {
+    background: var(--gradient-coral);
+    color: white;
+    padding: 0.2rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: bold;
+  }
+  
+  .error {
+    color: white;
+    padding: 0.75rem;
+    background: var(--gradient-coral);
+    border-radius: var(--border-radius);
+    margin-bottom: 1rem;
+    font-weight: bold;
+  }
+  
+  .success {
+    color: white;
+    padding: 0.75rem;
+    background: var(--gradient-teal);
+    border-radius: var(--border-radius);
+    margin-bottom: 1rem;
+    font-weight: bold;
+  }
+  
+  .dog-emoji {
+    font-size: 3rem;
+    text-align: center;
+    margin: 1rem 0;
+    animation: bounce 2s ease-in-out infinite;
+  }
+  
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+  
+  select {
+    width: 100%;
+    padding: 0.75rem;
+    font-size: 1rem;
+    border: 3px solid var(--blue-light);
+    border-radius: var(--border-radius);
+    margin-bottom: 1rem;
+    color: var(--text-primary);
+    background: white;
+    cursor: pointer;
+    transition: border-color 0.3s;
+  }
+  
+  select:focus {
+    outline: none;
+    border-color: var(--coral);
+  }
+</style>
+</head>
+<body>
+<!-- Memphis Background -->
+<div class="grid-bg"></div>
+<div class="geo-decor geo-1"></div>
+<div class="geo-decor geo-2"></div>
+<div class="geo-decor geo-3"></div>
+
+<div class="container">
+  <h1>🐕 DOGS WITH JOBS 🎯</h1>
+  
+  <!-- Main Menu -->
+  <div id="mainMenu" class="menu-section active">
+    <div class="dog-emoji">🐕‍🦺</div>
+    <input type="text" id="playerName" placeholder="Enter your name" maxlength="20">
+    <button onclick="createRoom()">Host New Game</button>
+    <button class="secondary" onclick="showJoinMenu()">Join Game</button>
+  </div>
+  
+  <!-- Join Room -->
+  <div id="joinMenu" class="menu-section">
+    <input type="text" id="roomCodeInput" placeholder="Enter room code" maxlength="6" style="text-transform: uppercase;">
+    <button onclick="joinRoom()">Join Room</button>
+    <button class="secondary" onclick="showMainMenu()">Back</button>
+  </div>
+  
+  <!-- Lobby -->
+  <div id="lobby" class="menu-section">
+    <h2>Game Lobby</h2>
+    <div class="room-code" id="roomCodeDisplay">ABCD12</div>
+    
+    <div style="margin: 1rem 0;">
+      <label style="display: block; margin-bottom: 0.5rem; color: var(--navy); font-weight: bold;">Choose Your Breed:</label>
+      <select id="breedSelect" onchange="updateBreed()">
+        <option value="">Random Breed</option>
+        <option value="Golden Retriever">Golden Retriever - +1❤️ each turn</option>
+        <option value="German Shepherd">German Shepherd - +1⚡ on Management</option>
+        <option value="Border Collie">Border Collie - Draw 6 cards</option>
+        <option value="Chihuahua">Chihuahua - +1💬 on Executive</option>
+        <option value="Labrador">Labrador - Play 2 cards per round</option>
+        <option value="Beagle">Beagle - Peek at bids</option>
+        <option value="Husky">Husky - Immune to Pack Mentality</option>
+        <option value="Pug">Pug - Steal project once</option>
+        <option value="Dalmatian">Dalmatian - +2💪 when completing</option>
+        <option value="Bloodhound">Bloodhound - Peek at agenda once</option>
+        <option value="Great Dane">Great Dane - Harder to distract</option>
+        <option value="Jack Russell">Jack Russell - Discard 2 draw 3</option>
+        <option value="Australian Cattle Dog">Aussie Cattle - 2 distractions per turn</option>
+      </select>
+    </div>
+    
+    <div class="players-list" id="playersList"></div>
+    <button id="readyBtn" onclick="toggleReady()">Ready</button>
+    <button id="startBtn" onclick="startGame()" style="display:none;">Start Game</button>
+    <button class="secondary" onclick="leaveRoom()">Leave Room</button>
+  </div>
+  
+  <!-- Game (placeholder) -->
+  <div id="game" class="menu-section">
+    <h2>Game In Progress</h2>
+    <div id="gameContent"></div>
+  </div>
+  
+  <div id="messages"></div>
+</div>
+
+<script>
+const socket = io();
+let currentRoom = null;
+let playerId = null;
+let isHost = false;
+let isReady = false;
+
+// Navigation
+function showMainMenu() {
+  document.querySelectorAll('.menu-section').forEach(s => s.classList.remove('active'));
+  document.getElementById('mainMenu').classList.add('active');
+}
+
+function showJoinMenu() {
+  document.querySelectorAll('.menu-section').forEach(s => s.classList.remove('active'));
+  document.getElementById('joinMenu').classList.add('active');
+}
+
+function showLobby() {
+  document.querySelectorAll('.menu-section').forEach(s => s.classList.remove('active'));
+  document.getElementById('lobby').classList.add('active');
+}
+
+function showGame() {
+  document.querySelectorAll('.menu-section').forEach(s => s.classList.remove('active'));
+  document.getElementById('game').classList.add('active');
+}
+
+// Room management
+function createRoom() {
+  const name = document.getElementById('playerName').value.trim();
+  if (!name) {
+    showMessage('Please enter your name', 'error');
+    return;
+  }
+  
+  socket.emit('create-room', name, (response) => {
+    if (response.success) {
+      currentRoom = response.roomCode;
+      playerId = response.playerId;
+      isHost = true;
+      document.getElementById('roomCodeDisplay').textContent = currentRoom;
+      updatePlayersList([{ name, host: true, ready: false }]);
+      document.getElementById('startBtn').style.display = 'block';
+      showLobby();
+      showMessage(`Room ${currentRoom} created!`, 'success');
+    } else {
+      showMessage('Failed to create room', 'error');
+    }
+  });
+}
+
+function joinRoom() {
+  const name = document.getElementById('playerName').value.trim();
+  const code = document.getElementById('roomCodeInput').value.trim().toUpperCase();
+  
+  if (!name) {
+    showMessage('Please enter your name first', 'error');
+    return;
+  }
+  
+  if (!code) {
+    showMessage('Please enter a room code', 'error');
+    return;
+  }
+  
+  socket.emit('join-room', { roomCode: code, playerName: name }, (response) => {
+    if (response.success) {
+      currentRoom = response.roomCode;
+      playerId = response.playerId;
+      isHost = false;
+      document.getElementById('roomCodeDisplay').textContent = currentRoom;
+      updatePlayersList(response.players);
+      showLobby();
+      showMessage('Joined room successfully!', 'success');
+    } else {
+      showMessage(response.error || 'Failed to join room', 'error');
+    }
+  });
+}
+
+function leaveRoom() {
+  // In production, would emit leave-room event
+  window.location.reload();
+}
+
+function toggleReady() {
+  isReady = !isReady;
+  socket.emit('player-ready', isReady);
+  document.getElementById('readyBtn').textContent = isReady ? 'Not Ready' : 'Ready';
+  document.getElementById('readyBtn').style.background = isReady ? 
+    'linear-gradient(135deg, #65C3BA, #2A4B8D)' : 
+    'linear-gradient(135deg, #E76F51, #F4A261)';
+}
+
+function updateBreed() {
+  const breed = document.getElementById('breedSelect').value;
+  socket.emit('update-breed', breed);
+}
+
+function startGame() {
+  if (!isHost) return;
+  
+  const players = []; // Will be filled from server
+  socket.emit('start-game', {
+    // Game settings if needed
+  });
+}
+
+function updatePlayersList(players) {
+  const list = document.getElementById('playersList');
+  list.innerHTML = players.map(p => `
+    <div class="player-item ${p.ready ? 'player-ready' : ''}">
+      <span>
+        ${p.name} 
+        ${p.host ? '<span class="host-badge">HOST</span>' : ''}
+      </span>
+      <span>${p.ready ? '✅ Ready' : '⏳ Waiting'}</span>
+    </div>
+  `).join('');
+}
+
+function showMessage(text, type = 'info') {
+  const msg = document.createElement('div');
+  msg.className = type;
+  msg.textContent = text;
+  document.getElementById('messages').appendChild(msg);
+  setTimeout(() => msg.remove(), 3000);
+}
+
+// Socket events
+socket.on('player-joined', (data) => {
+  updatePlayersList(data.players);
+  showMessage(`${data.newPlayer.name} joined the game`, 'success');
+});
+
+socket.on('player-left', (players) => {
+  updatePlayersList(players);
+});
+
+socket.on('player-ready-changed', (players) => {
+  updatePlayersList(players);
+});
+
+socket.on('game-started', (gameData) => {
+  // Save player ID and room info for reconnection
+  sessionStorage.setItem('playerId', playerId);
+  sessionStorage.setItem('roomCode', currentRoom);
+  sessionStorage.setItem('playerName', document.getElementById('playerName').value.trim());
+  sessionStorage.setItem('gameData', JSON.stringify(gameData));
+  window.location.href = `/game-memphis-3d.html?playerId=${playerId}`;
+});
+
+socket.on('opponent-bid', (data) => {
+  // Show animation of opponent placing bid
+  console.log('Opponent bid:', data);
+});
+
+socket.on('game-updated', (gameData) => {
+  // Update game view
+  console.log('Game updated:', gameData);
+});
+</script>
+</body>
+</html>

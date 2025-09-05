@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Dogs With Jobs - Agenda Rules Tester</title>
+<style>
+  body {
+    font-family: monospace;
+    padding: 20px;
+    background: #1a1a1a;
+    color: #0f0;
+  }
+  .test-section {
+    margin: 20px 0;
+    padding: 15px;
+    border: 1px solid #0f0;
+    background: #0a0a0a;
+  }
+  .pass { color: #0f0; }
+  .fail { color: #f00; }
+  .warn { color: #ff0; }
+  button {
+    padding: 10px 20px;
+    margin: 5px;
+    background: #333;
+    color: #0f0;
+    border: 1px solid #0f0;
+    cursor: pointer;
+  }
+  button:hover {
+    background: #444;
+  }
+  .result {
+    margin: 10px 0;
+    padding: 10px;
+    border-left: 3px solid #0f0;
+  }
+  .result.fail {
+    border-color: #f00;
+  }
+</style>
+</head>
+<body>
+<h1>🐕 Dogs With Jobs - Hidden Agenda Win Condition Tester</h1>
+
+<div class="test-section">
+  <h2>Test Controls</h2>
+  <button onclick="runAllTests()">Run All Tests</button>
+  <button onclick="testSpecificAgenda()">Test Specific Agenda</button>
+  <button onclick="clearResults()">Clear Results</button>
+</div>
+
+<div class="test-section">
+  <h2>Test Results</h2>
+  <div id="results"></div>
+</div>
+
+<script>
+// Mock game state for testing
+class GameStateMock {
+  constructor() {
+    this.reset();
+  }
+  
+  reset() {
+    this.turn = 1;
+    this.players = [
+      { id: 0, name: "Player 1", position: 1, completedProjects: [], distractionsPlayed: 0, distractionsReceived: 0 },
+      { id: 1, name: "Player 2", position: 1, completedProjects: [], distractionsPlayed: 0, distractionsReceived: 0 },
+      { id: 2, name: "Player 3", position: 1, completedProjects: [], distractionsPlayed: 0, distractionsReceived: 0 },
+      { id: 3, name: "Player 4", position: 1, completedProjects: [], distractionsPlayed: 0, distractionsReceived: 0 }
+    ];
+  }
+}
+
+// Agenda Win Condition Checkers
+const AGENDA_CHECKERS = {
+  "Teacher's Pet": function(playerIndex, gameState) {
+    // Win if you complete 3 projects while the player to your left completes 0
+    const player = gameState.players[playerIndex];
+    const leftPlayer = gameState.players[(playerIndex + 1) % gameState.players.length];
+    return player.completedProjects.length >= 3 && leftPlayer.completedProjects.length === 0;
+  },
+  
+  "Chaos Agent": function(playerIndex, gameState) {
+    // Win if 6+ Distraction Cards are played by you
+    const player = gameState.players[playerIndex];
+    return player.distractionsPlayed >= 6;
+  },
+  
+  "Middle Management Forever": function(playerIndex, gameState) {
+    // Win if you're in exactly 3rd place when someone reaches CEO
+    const sorted = [...gameState.players].sort((a, b) => b.position - a.position);
+    const playerRank = sorted.findIndex(p => p.id === playerIndex) + 1;
+    const someoneReachedCEO = gameState.players.some(p => p.position >= 50);
+    return someoneReachedCEO && playerRank === 3;
+  },
+  
+  "Overachiever": function(playerIndex, gameState) {
+    // Reach CEO with 2+ extra ladder spaces beyond requirement
+    const player = gameState.players[playerIndex];
+    return player.position >= 52; // 50 is CEO, so 52+ is overachieving
+  },
+  
+  "Saboteur": function(playerIndex, gameState) {
+    // Win if no one reaches CEO (space 50) by Turn 12
+    const noOneAtCEO = !gameState.players.some(p => p.position >= 50);
+    return gameState.turn >= 12 && noOneAtCEO;
+  },
+  
+  "Attention Whore": function(playerIndex, gameState) {
+    // Win if you're targeted by 4+ Distraction Cards
+    const player = gameState.players[playerIndex];
+    return player.distractionsReceived >= 4;
+  },
+  
+  "Workaholic": function(playerIndex, gameState) {
+    // Complete 8 projects of any difficulty level
+    const player = gameState.players[playerIndex];
+    return player.completedProjects.length >= 8;
+  },
+  
+  "Imposter Syndrome": function(playerIndex, gameState) {
+    // Win if whoever reaches CEO has fewer completed projects than you
+    const player = gameState.players[playerIndex];
+    const ceoPlayer = gameState.players.find(p => p.position >= 50);
+    if (!ceoPlayer || ceoPlayer.id === playerIndex) return false;
+    return ceoPlayer.completedProjects.length < player.completedProjects.length;
+  },
+  
+  "Lucky Bastard": function(playerIndex, gameState) {
+    // Complete 2 Executive-level projects
+    const player = gameState.players[playerIndex];
+    const executiveProjects = player.completedProjects.filter(p => p.tier === 'Executive');
+    return executiveProjects.length >= 2;
+  },
+  
+  "Enabler": function(playerIndex, gameState) {
+    // Win if every other player completes at least 2 projects when game ends
+    const otherPlayers = gameState.players.filter((p, i) => i !== playerIndex);
+    const allHave2Projects = otherPlayers.every(p => p.completedProjects.length >= 2);
+    return (gameState.turn >= 12 || gameState.players.some(p => p.position >= 50)) && allHave2Projects;
+  },
+  
+  "Comeback Kid": function(playerIndex, gameState) {
+    // Reach space 40+ from space 10 or below in a single turn
+    const player = gameState.players[playerIndex];
+    // This would need turn history tracking - simplified for test
+    return player.lastTurnJump && player.lastTurnJump.from <= 10 && player.lastTurnJump.to >= 40;
+  },
+  
+  "Perfectionist": function(playerIndex, gameState) {
+    // Complete projects worth exactly 15 ladder spaces total
+    const player = gameState.players[playerIndex];
+    const totalSpaces = player.completedProjects.reduce((sum, p) => sum + p.spaces, 0);
+    return totalSpaces === 15;
+  }
+};
+
+// Test runner
+function runTest(agendaName, scenario) {
+  const gameState = new GameStateMock();
+  
+  // Apply scenario setup
+  scenario.setup(gameState);
+  
+  // Check win condition
+  const result = AGENDA_CHECKERS[agendaName](scenario.playerIndex || 0, gameState);
+  
+  return {
+    agenda: agendaName,
+    scenario: scenario.description,
+    expected: scenario.expected,
+    actual: result,
+    passed: result === scenario.expected,
+    gameState: gameState
+  };
+}
+
+function runAllTests() {
+  const results = document.getElementById('results');
+  results.innerHTML = '<h3>Running all agenda tests...</h3>';
+  
+  const testScenarios = {
+    "Teacher's Pet": [
+      {
+        description: "Player has 3 projects, left neighbor has 0",
+        setup: (state) => {
+          state.players[0].completedProjects = [{}, {}, {}];
+          state.players[1].completedProjects = [];
+        },
+        expected: true
+      },
+      {
+        description: "Player has 3 projects, left neighbor has 1",
+        setup: (state) => {
+          state.players[0].completedProjects = [{}, {}, {}];
+          state.players[1].completedProjects = [{}];
+        },
+        expected: false
+      }
+    ],
+    
+    "Chaos Agent": [
+      {
+        description: "Player played 6 distraction cards",
+        setup: (state) => {
+          state.players[0].distractionsPlayed = 6;
+        },
+        expected: true
+      },
+      {
+        description: "Player played 5 distraction cards",
+        setup: (state) => {
+          state.players[0].distractionsPlayed = 5;
+        },
+        expected: false
+      }
+    ],
+    
+    "Middle Management Forever": [
+      {
+        description: "Player in 3rd when someone reaches CEO",
+        setup: (state) => {
+          state.players[0].position = 25;  // 3rd place
+          state.players[1].position = 50;  // CEO
+          state.players[2].position = 35;  // 2nd place
+          state.players[3].position = 20;  // 4th place
+        },
+        expected: true
+      }
+    ],
+    
+    "Workaholic": [
+      {
+        description: "Player completed 8 projects",
+        setup: (state) => {
+          state.players[0].completedProjects = Array(8).fill({});
+        },
+        expected: true
+      }
+    ],
+    
+    "Perfectionist": [
+      {
+        description: "Projects worth exactly 15 spaces",
+        setup: (state) => {
+          state.players[0].completedProjects = [
+            { spaces: 3 },
+            { spaces: 3 },
+            { spaces: 3 },
+            { spaces: 3 },
+            { spaces: 3 }
+          ];
+        },
+        expected: true
+      },
+      {
+        description: "Projects worth 16 spaces (too many)",
+        setup: (state) => {
+          state.players[0].completedProjects = [
+            { spaces: 3 },
+            { spaces: 3 },
+            { spaces: 3 },
+            { spaces: 3 },
+            { spaces: 4 }
+          ];
+        },
+        expected: false
+      }
+    ]
+  };
+  
+  let totalTests = 0;
+  let passedTests = 0;
+  
+  for (const [agenda, scenarios] of Object.entries(testScenarios)) {
+    if (!AGENDA_CHECKERS[agenda]) {
+      results.innerHTML += `<div class="result fail">⚠️ No checker for agenda: ${agenda}</div>`;
+      continue;
+    }
+    
+    for (const scenario of scenarios) {
+      totalTests++;
+      const result = runTest(agenda, scenario);
+      
+      if (result.passed) {
+        passedTests++;
+        results.innerHTML += `<div class="result pass">✅ ${agenda}: ${scenario.description}</div>`;
+      } else {
+        results.innerHTML += `<div class="result fail">❌ ${agenda}: ${scenario.description} (Expected: ${result.expected}, Got: ${result.actual})</div>`;
+      }
+    }
+  }
+  
+  results.innerHTML += `<h3>Test Summary: ${passedTests}/${totalTests} tests passed</h3>`;
+}
+
+function testSpecificAgenda() {
+  const agendaName = prompt("Enter agenda name to test:");
+  if (!AGENDA_CHECKERS[agendaName]) {
+    alert("Unknown agenda: " + agendaName);
+    return;
+  }
+  
+  const results = document.getElementById('results');
+  results.innerHTML = `<h3>Testing ${agendaName}...</h3>`;
+  
+  // Create a test scenario
+  const gameState = new GameStateMock();
+  // You can modify the game state here for specific testing
+  
+  const result = AGENDA_CHECKERS[agendaName](0, gameState);
+  results.innerHTML += `<div class="result">Result: ${result}</div>`;
+}
+
+function clearResults() {
+  document.getElementById('results').innerHTML = '';
+}
+
+// Auto-run tests on load
+window.onload = () => {
+  runAllTests();
+};
+</script>
+</body>
+</html>

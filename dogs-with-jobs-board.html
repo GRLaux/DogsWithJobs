@@ -1,0 +1,578 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Dogs With Jobs — Board (Always-Visible Hand)</title>
+<style>
+  :root{ --bg:#f2efe9; --ink:#232323; --accent:#ff7b00; --accent2:#19a2ff; --accent3:#e83c90; --grid:#e1dccf; --card:#ffffff; --muted:#666 }
+  html,body{height:100%} body{ margin:0; background:var(--bg); color:var(--ink);
+    font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; }
+  .wrapper{max-width:1450px;margin:0 auto;padding:20px}
+  header{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .brand{display:flex;align-items:center;gap:10px}
+  .shape{width:32px;height:32px;background:conic-gradient(from 45deg,#ff7b00,#19a2ff,#e83c90,#ff7b00);clip-path:polygon(0 0,100% 10%,90% 100%,10% 90%);}
+  .sub{color:var(--muted);font-size:12px}
+  .btn{border:2px solid var(--ink);background:#fff;padding:8px 12px;border-radius:10px;cursor:pointer;box-shadow:4px 4px 0 #0002}
+  .btn:active{transform:translate(1px,1px)}
+  .btn.small{padding:4px 8px;font-size:12px;border-radius:8px}
+  .btn.primary{background:var(--accent);color:white;border-color:#6b2b00}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .card{background:var(--card);border:2px solid var(--ink);border-radius:16px;padding:12px;box-shadow:6px 6px 0 #0002}
+  .h{margin:0 0 6px 0;font-size:18px} .small{font-size:12px} .muted{color:var(--muted)}
+  .layout{display:grid;grid-template-columns: 520px 1fr 380px;gap:12px}
+
+  .board{position:relative;aspect-ratio:1/1;background:linear-gradient(135deg,#fff,#f9f7f2);border-radius:20px;border:2px solid var(--ink);box-shadow:8px 8px 0 #0002;overflow:hidden}
+  .ring{position:absolute;inset:10px;border-radius:20px;pointer-events:none}
+  .space{position:absolute;width:34px;height:34px;border-radius:50%;background:#fff;border:2px solid var(--ink);display:flex;align-items:center;justify-content:center;font-size:12px}
+  .tier1{background:#eef7ff} .tier2{background:#ecffe9} .tier3{background:#fff6e5} .tier4{background:#ffe9f6} .tier5{background:#f2f2f2}
+  .meeple{position:absolute;width:18px;height:18px;border-radius:50%;border:2px solid var(--ink);background:var(--accent2);transform:translate(-50%,-50%)}
+  .meeple[data-color="1"]{background:#19a2ff} .meeple[data-color="2"]{background:#f46666} .meeple[data-color="3"]{background:#7bd389} .meeple[data-color="4"]{background:#ffd166} .meeple[data-color="5"]{background:#9b6bff} .meeple[data-color="6"]{background:#6bd3c3}
+
+  .center{display:grid;grid-template-rows:auto auto auto 1fr;gap:10px}
+  .projectGrid{display:grid;grid-template-columns:repeat(3, minmax(0,1fr));gap:8px}
+  .projectCard{min-height:140px;position:relative}
+  .badge{position:absolute;right:10px;top:10px;background:var(--accent3);color:white;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:700}
+  .cost{font-weight:700}
+
+  .playerList{display:flex;flex-direction:column;gap:10px}
+  .handRow{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+  .bigHand{display:grid;grid-template-columns:repeat(4, minmax(0,1fr));gap:8px}
+  .cardlet, .bigCard{border:1px solid #0002;border-radius:10px;padding:6px 8px;background:#fff;min-width:140px;cursor:pointer;box-shadow:2px 2px 0 #0002;transition:transform .15s}
+  .bigCard{min-height:84px}
+  .cardlet.selected, .bigCard.selected{outline:3px solid #19a2ff; transform:translateY(-2px)}
+  .agendaBox{background:#fff7ff;border:1px dashed #8a2be2;border-radius:10px;padding:8px;margin-top:6px}
+  .breedBox{background:#eef9ff;border:1px dashed #1971c2;border-radius:10px;padding:8px;margin-top:6px}
+  .divider{height:2px;background: repeating-linear-gradient(90deg,var(--ink),var(--ink) 12px, transparent 12px, transparent 24px);opacity:.2;margin:8px 0}
+  .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#fff;border:2px solid var(--ink);padding:10px 14px;border-radius:10px;box-shadow:6px 6px 0 #0002;display:none;z-index:1000}
+  .toggle{display:flex;align-items:center;gap:6px}
+  .blurred{filter: blur(4px)}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;border:1px solid #0006;vertical-align:middle}
+  .activeBadge{background:#111;color:#fff;border-radius:8px;padding:2px 6px;font-size:10px;margin-left:auto}
+  .activeCard{outline:3px solid #19a2ff; outline-offset:2px}
+
+  .readout{margin-top:10px}
+  .readRow{display:flex;flex-direction:column;gap:4px;margin-bottom:8px}
+  .log{max-height:180px;overflow:auto;background:#fff;border:2px solid var(--ink);border-radius:12px;padding:8px}
+  .logItem{font-size:12px;margin-bottom:4px}
+
+  .shake{animation:shake .4s linear;} @keyframes shake{0%{transform:translateX(0)}25%{transform:translateX(-3px)}50%{transform:translateX(3px)}75%{transform:translateX(-2px)}100%{transform:translateX(0)}}
+  .pulse{animation:pulse .6s ease-in-out} @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(232,60,144,.6)}100%{box-shadow:0 0 0 16px rgba(232,60,144,0)}}
+  canvas#fx{position:absolute; inset:0; pointer-events:none}
+</style>
+</head>
+<body>
+  <div class="wrapper">
+    <header>
+      <div class="brand">
+        <div class="shape"></div>
+        <div>
+          <div style="font-size:22px;line-height:1">Dogs With Jobs — Digital Board</div>
+          <div class="sub">Always-visible active hand + previous fixes</div>
+        </div>
+      </div>
+      <div class="row">
+        <button class="btn primary" id="startBtn">Start Game</button>
+        <button class="btn" id="saveBtn">Save</button>
+        <button class="btn" id="loadBtn">Load</button>
+        <label class="toggle"><input type="checkbox" id="showAllHands"/> Show all hands</label>
+      </div>
+    </header>
+
+    <div class="layout">
+      <section class="card">
+        <h3 class="h">Corporate Ladder</h3>
+        <div class="sub small">First to 50 = CEO • Highest after Turn 12 if no CEO</div>
+        <div id="board" class="board"><canvas id="fx"></canvas><div id="ring" class="ring"></div></div>
+        <div class="row" style="margin-top:6px">
+          <span class="small">Turn: <strong id="turnNum">1</strong></span>
+          <span class="small">Phase: <strong id="phaseName">Setup</strong></span>
+          <span class="small">Round: <strong id="roundNum">—</strong></span>
+          <span class="small">First Player: <strong id="firstPlayer">—</strong></span>
+        </div>
+        <div class="readout">
+          <h4 class="h">Bids & Results</h4>
+          <div id="readoutBox" class="small muted">(No bids yet)</div>
+        </div>
+        <div class="readout">
+          <h4 class="h">Event Log</h4>
+          <div id="logBox" class="log"></div>
+        </div>
+      </section>
+
+      <section class="center">
+        <div class="card">
+          <div class="row" style="justify-content:space-between;align-items:center">
+            <h3 class="h">Company Culture</h3>
+            <select id="cultureSelect">
+              <option value="none">None</option>
+              <option value="crunch">Crunch Time Crisis (max 4 turns, +1 ladder per project)</option>
+              <option value="startup">Startup Hustle (project costs total -1)</option>
+            </select>
+          </div>
+          <div class="small muted">Change during Setup.</div>
+        </div>
+
+        <div class="card">
+          <h3 class="h">Active Projects</h3>
+          <div id="projectGrid" class="projectGrid"></div>
+        </div>
+
+        <div class="card">
+          <h3 class="h">Active Player Hand</h3>
+          <div class="small muted">Select cards here (mirrors the player list).</div>
+          <div id="activeHand" class="bigHand"></div>
+        </div>
+
+        <div class="card">
+          <h3 class="h">Actions & Distractions</h3>
+          <div class="row">
+            <span class="small">Current: <strong id="currentPlayerName">—</strong></span>
+            <span class="small">Allowed this round: <strong id="allowedThisRound">1</strong></span>
+            <span class="small">Placed: <strong id="placedThisRound">0</strong></span>
+          </div>
+          <div class="divider"></div>
+          <div class="row">
+            <button class="btn" id="commitP0">Commit to Project 1</button>
+            <button class="btn" id="commitP1">Commit to Project 2</button>
+            <button class="btn" id="commitP2">Commit to Project 3</button>
+            <button class="btn" id="passBtn">Pass</button>
+            <button class="btn primary" id="advancePhaseBtn">Advance Phase</button>
+          </div>
+          <div class="divider"></div>
+          <div class="row">
+            <button class="btn" id="playSelectedDistraction">Play Selected Distraction</button>
+            <span class="small muted">Instants: any time (1/turn). End-of-Round: Distraction phase.</span>
+          </div>
+        </div>
+      </section>
+
+      <aside class="card">
+        <h3 class="h">Players</h3>
+        <div id="playerList" class="playerList"></div>
+        <div class="divider"></div>
+        <div class="small">Decks: Action <span id="aCount"></span> • Distraction <span id="dCount"></span> • Project <span id="pCount"></span></div>
+      </aside>
+    </div>
+
+    <div class="toast" id="toast"></div>
+  </div>
+
+  <!-- Setup Modal -->
+  <div class="modal" id="modalSetup" style="display:none">
+    <div class="inner">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <h3 class="h">Setup Game</h3>
+        <button class="btn" id="closeSetup">Close</button>
+      </div>
+      <div class="row">
+        <div class="card" style="flex:1">
+          <h4 class="h">Players</h4>
+          <label class="small">Comma-separated names</label>
+          <input id="namesInput" style="padding:8px;border-radius:10px;border:1px solid #0003" placeholder="Greg, Sam, Roxy"/>
+          <label class="small">Breeds (same order, comma-separated)</label>
+          <input id="breedsInput" style="padding:8px;border-radius:10px;border:1px solid #0003" placeholder="Labrador, Border Collie"/>
+          <div class="small muted">Supported: Labrador, Border Collie, Beagle, German Shepherd, Chihuahua, Jack Russell</div>
+        </div>
+        <div class="card" style="flex:1">
+          <h4 class="h">Company Culture</h4>
+          <select id="setupCulture">
+            <option value="none">None</option>
+            <option value="crunch">Crunch Time Crisis</option>
+            <option value="startup">Startup Hustle</option>
+          </select>
+        </div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn primary" id="applySetup">Apply & Start</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+// --- Embedded decks from CSV ---
+const ACTION_CSV = [{"Name": "Bark", "Category": "Communication", "Cost": "2💬", "Copies": 3}, {"Name": "Howl at moon", "Category": "Communication", "Cost": "2💬 + 1⚡", "Copies": 2}, {"Name": "Whimper", "Category": "Communication", "Cost": "1💬", "Copies": 2}, {"Name": "Growl at Jeff from Accounting", "Category": "Communication", "Cost": "2💬 + 1💪", "Copies": 1}, {"Name": "Excited yipping", "Category": "Communication", "Cost": "1💬 + 1❤️", "Copies": 2}, {"Name": "Aggressive throat singing", "Category": "Communication", "Cost": "3💬", "Copies": 1}, {"Name": "Woof of confusion", "Category": "Communication", "Cost": "1💬", "Copies": 2}, {"Name": "Bark at absolutely nothing for 20 minutes", "Category": "Communication", "Cost": "3💬", "Copies": 1}, {"Name": "Howl about your divorce", "Category": "Communication", "Cost": "2💬 + 1⚡", "Copies": 1}, {"Name": "Whine about office temperature", "Category": "Communication", "Cost": "1💬 + 1❤️", "Copies": 1}, {"Name": "Death metal growl", "Category": "Communication", "Cost": "2💬 + 1💪", "Copies": 1}, {"Name": "Existential howling", "Category": "Communication", "Cost": "2💬 + 2⚡", "Copies": 1}, {"Name": "Complain to HR via interpretive barking", "Category": "Communication", "Cost": "3💬 + 1❤️", "Copies": 1}, {"Name": "Whisper menacingly", "Category": "Communication", "Cost": "1💬 + 1⚡", "Copies": 1}, {"Name": "Sit", "Category": "Focus", "Cost": "1⚡", "Copies": 3}, {"Name": "Stay", "Category": "Focus", "Cost": "2⚡", "Copies": 2}, {"Name": "Stare at wall", "Category": "Focus", "Cost": "2⚡", "Copies": 2}, {"Name": "Scratch ear", "Category": "Focus", "Cost": "1⚡", "Copies": 2}, {"Name": "Tilt head", "Category": "Focus", "Cost": "1⚡", "Copies": 2}, {"Name": "Zone out completely", "Category": "Focus", "Cost": "3⚡", "Copies": 1}, {"Name": "Enter dissociative state", "Category": "Focus", "Cost": "3⚡", "Copies": 1}, {"Name": "Contemplate mortality", "Category": "Focus", "Cost": "2⚡ + 1💬", "Copies": 1}, {"Name": "Meditate on the futility of corporate life", "Category": "Focus", "Cost": "4⚡", "Copies": 1}, {"Name": "See ghosts", "Category": "Focus", "Cost": "2⚡ + 1❤️", "Copies": 1}, {"Name": "Calculate exact distance to treat drawer", "Category": "Focus", "Cost": "2⚡ + 1💪", "Copies": 1}, {"Name": "Judge everyone silently", "Category": "Focus", "Cost": "2⚡", "Copies": 1}, {"Name": "Achieve enlightenment briefly", "Category": "Focus", "Cost": "3⚡ + 1❤️", "Copies": 1}, {"Name": "Laser focus on dust mote", "Category": "Focus", "Cost": "1⚡ + 1💪", "Copies": 1}, {"Name": "Wag tail", "Category": "Social", "Cost": "1❤️", "Copies": 3}, {"Name": "Roll over", "Category": "Social", "Cost": "1❤️", "Copies": 2}, {"Name": "Play bow", "Category": "Social", "Cost": "2❤️", "Copies": 2}, {"Name": "Puppy eyes", "Category": "Social", "Cost": "1❤️ + 1💬", "Copies": 2}, {"Name": "Happy dance", "Category": "Social", "Cost": "1❤️ + 1💪", "Copies": 2}, {"Name": "Aggressive snuggling", "Category": "Social", "Cost": "2❤️ + 1💪", "Copies": 1}, {"Name": "Weaponized cuteness", "Category": "Social", "Cost": "3❤️", "Copies": 1}, {"Name": "Manipulative head tilt", "Category": "Social", "Cost": "2❤️ + 1⚡", "Copies": 1}, {"Name": "Emotional support presence", "Category": "Social", "Cost": "2❤️", "Copies": 1}, {"Name": "Unconditional love bombing", "Category": "Social", "Cost": "3❤️ + 1💬", "Copies": 1}, {"Name": "Codependent behavior", "Category": "Social", "Cost": "2❤️ + 1💬", "Copies": 1}, {"Name": "People pleasing to unhealthy degree", "Category": "Social", "Cost": "2❤️ + 2⚡", "Copies": 1}, {"Name": "Guilt trip via eye contact", "Category": "Social", "Cost": "1❤️ + 2💬", "Copies": 1}, {"Name": "Run", "Category": "Physical", "Cost": "2💪", "Copies": 3}, {"Name": "Dig", "Category": "Physical", "Cost": "2💪", "Copies": 2}, {"Name": "Fetch", "Category": "Physical", "Cost": "1💪 + 1❤️", "Copies": 2}, {"Name": "Shake", "Category": "Physical", "Cost": "1💪", "Copies": 2}, {"Name": "Paw at air", "Category": "Physical", "Cost": "1💪", "Copies": 2}, {"Name": "Zoomies", "Category": "Physical", "Cost": "3💪", "Copies": 1}, {"Name": "Violent full-body shake", "Category": "Physical", "Cost": "2💪 + 1💬", "Copies": 1}, {"Name": "Excavate to Australia", "Category": "Physical", "Cost": "3💪", "Copies": 1}, {"Name": "Parkour through cubicles", "Category": "Physical", "Cost": "2💪 + 1⚡", "Copies": 1}, {"Name": "Stress digging in conference room", "Category": "Physical", "Cost": "2💪 + 1💬", "Copies": 1}, {"Name": "Fetch nothing with passion", "Category": "Physical", "Cost": "2💪 + 1❤️", "Copies": 1}, {"Name": "Territorial leg lifting", "Category": "Physical", "Cost": "2💪 + 2💬", "Copies": 1}, {"Name": "Interpretive dance about quarterly reports", "Category": "Physical", "Cost": "1💪 + 2❤️", "Copies": 1}];
+const DISTRACTION_CSV = [{"Name": "Squirrel!", "Type": "Instant", "Effect": "Target reveals & discards 1 bid", "Copies": 4}, {"Name": "Doorbell", "Type": "Instant", "Effect": "Target skips next bidding round", "Copies": 3}, {"Name": "Sudden play fight", "Type": "Instant", "Effect": "Swap hands with target", "Copies": 2}, {"Name": "Zoomies attack", "Type": "Instant", "Effect": "Target returns all bids to hand, skips projects", "Copies": 2}, {"Name": "Treat emergency", "Type": "Instant", "Effect": "Target discards 1 card before next bid", "Copies": 2}, {"Name": "Mailman spotted", "Type": "Instant", "Effect": "All 💬 gain +1 for this phase", "Copies": 1}, {"Name": "Existential crisis", "Type": "Instant", "Effect": "Target explains bid in character as a dog", "Copies": 1}, {"Name": "Pack mentality activated", "Type": "End", "Effect": "Everyone passes 1 card clockwise", "Copies": 3}, {"Name": "Management restructure", "Type": "End", "Effect": "Shuffle projects, draw new", "Copies": 2}, {"Name": "Office gossip network", "Type": "End", "Effect": "Look at target Hidden Agenda", "Copies": 2}, {"Name": "Mandatory team lunch", "Type": "End", "Effect": "Everyone draws 2, discards 1", "Copies": 2}, {"Name": "IT disaster recovery", "Type": "End", "Effect": "All discard hand, redraw min (5/6)", "Copies": 1}, {"Name": "Coffee machine breakdown", "Type": "End", "Effect": "Target cannot play Instant next turn", "Copies": 2}, {"Name": "Participation trophy distribution", "Type": "End", "Effect": "Non-winners draw +1", "Copies": 2}, {"Name": "Fire drill chaos", "Type": "End", "Effect": "Next turn: all bids face-up", "Copies": 1}, {"Name": "Coffee delivery", "Type": "Beneficial Instant", "Effect": "You + target draw 1 each", "Copies": 2}, {"Name": "Motivational speech", "Type": "Beneficial Instant", "Effect": "+1 energy to all next bids", "Copies": 1}, {"Name": "Lucky break", "Type": "Beneficial Instant", "Effect": "Look at top 3 projects, choose reveal", "Copies": 1}, {"Name": "Networking opportunity", "Type": "Beneficial Instant", "Effect": "Next turn copy winning bid energy", "Copies": 1}, {"Name": "Insider information", "Type": "Beneficial Instant", "Effect": "See all bids for 1 project", "Copies": 1}, {"Name": "Team bonding exercise", "Type": "Beneficial End", "Effect": "All draw +1, you +2", "Copies": 2}, {"Name": "Performance bonus", "Type": "Beneficial End", "Effect": "+1 space if completed project", "Copies": 1}, {"Name": "Mentorship program", "Type": "Beneficial End", "Effect": "You + target gain +1 next bids", "Copies": 1}, {"Name": "Collaboration success", "Type": "Beneficial End", "Effect": "If you + target completed, both draw 2", "Copies": 1}, {"Name": "Innovation award", "Type": "Beneficial End", "Effect": "Next turn bid with any energy type", "Copies": 1}];
+const PROJECT_CSV = [{"Name": "File paperwork", "Tier": "Entry", "Cost": "2⚡", "Copies": 1}, {"Name": "Answer phones", "Tier": "Entry", "Cost": "2💬", "Copies": 1}, {"Name": "Greet visitors", "Tier": "Entry", "Cost": "1❤️ + 1💬", "Copies": 1}, {"Name": "Data entry", "Tier": "Entry", "Cost": "3⚡", "Copies": 1}, {"Name": "Coffee run", "Tier": "Entry", "Cost": "2💪", "Copies": 1}, {"Name": "Sort mail", "Tier": "Entry", "Cost": "1💪 + 1⚡", "Copies": 1}, {"Name": "Water plants", "Tier": "Entry", "Cost": "1💪", "Copies": 1}, {"Name": "Organize supplies", "Tier": "Entry", "Cost": "2💪", "Copies": 1}, {"Name": "Update database without paw prints", "Tier": "Entry", "Cost": "2⚡ + 1💪", "Copies": 1}, {"Name": "Professional email (no 'woof')", "Tier": "Entry", "Cost": "2💬 + 1⚡", "Copies": 1}, {"Name": "Schedule meetings during nap hours", "Tier": "Entry", "Cost": "1💬 + 2⚡", "Copies": 1}, {"Name": "Inventory without hiding treats", "Tier": "Entry", "Cost": "2⚡ + 1💪", "Copies": 1}, {"Name": "Client small talk without sniffing", "Tier": "Entry", "Cost": "1💬 + 1❤️", "Copies": 1}, {"Name": "Photocopy without eating paper", "Tier": "Entry", "Cost": "1💪 + 1⚡", "Copies": 1}, {"Name": "Reception desk: no leg humping", "Tier": "Entry", "Cost": "2❤️", "Copies": 1}, {"Name": "Lead team meeting", "Tier": "Management", "Cost": "2💬 + 1❤️", "Copies": 1}, {"Name": "Budget review", "Tier": "Management", "Cost": "3⚡", "Copies": 1}, {"Name": "Performance evaluations", "Tier": "Management", "Cost": "2❤️ + 1⚡", "Copies": 1}, {"Name": "Strategic planning", "Tier": "Management", "Cost": "3⚡ + 1💬", "Copies": 1}, {"Name": "Client presentation", "Tier": "Management", "Cost": "3💬", "Copies": 1}, {"Name": "Contract negotiation", "Tier": "Management", "Cost": "2💬 + 1💪", "Copies": 1}, {"Name": "Crisis management", "Tier": "Management", "Cost": "2💪 + 1💬", "Copies": 1}, {"Name": "Staff training", "Tier": "Management", "Cost": "2❤️ + 1💬", "Copies": 1}, {"Name": "Market research", "Tier": "Management", "Cost": "2⚡ + 1💪", "Copies": 1}, {"Name": "Quality control", "Tier": "Management", "Cost": "2⚡ + 1💪", "Copies": 1}, {"Name": "Vendor relations", "Tier": "Management", "Cost": "2💬 + 1❤️", "Copies": 1}, {"Name": "Process improvement", "Tier": "Management", "Cost": "2⚡ + 1💪", "Copies": 1}, {"Name": "Team building (no mounting)", "Tier": "Management", "Cost": "3❤️ + 1💬", "Copies": 1}, {"Name": "Disciplinary meeting (no growling)", "Tier": "Management", "Cost": "2💬 + 2⚡", "Copies": 1}, {"Name": "Quarterly projections (treats≠good)", "Tier": "Management", "Cost": "4⚡", "Copies": 1}, {"Name": "Board presentation (no humping)", "Tier": "Executive", "Cost": "4💬 + 1⚡", "Copies": 1}, {"Name": "Merger negotiation (no marking)", "Tier": "Executive", "Cost": "3💬 + 2❤️", "Copies": 1}, {"Name": "Company restructure (not pack hierarchy)", "Tier": "Executive", "Cost": "3⚡ + 2💪", "Copies": 1}, {"Name": "Annual strategy (not just treats)", "Tier": "Executive", "Cost": "4⚡ + 1❤️", "Copies": 1}, {"Name": "IPO preparation (Initial Puppy Offering)", "Tier": "Executive", "Cost": "3💬 + 2⚡", "Copies": 1}, {"Name": "Hostile takeover via tail wagging", "Tier": "Executive", "Cost": "2💬 + 2💪 + 1❤️", "Copies": 1}];
+
+// --- Helpers ---
+const EMO = {'💬':'comm','⚡':'focus','❤️':'social','💪':'phys'};
+const ENERGY_NAMES = {comm:'💬', focus:'⚡', social:'❤️', phys:'💪'};
+const TIERS = {Entry:1, Management:2, Executive:3};
+const PLAYER_COLORS = {1:'#19a2ff',2:'#f46666',3:'#7bd389',4:'#ffd166',5:'#9b6bff',6:'#6bd3c3'};
+
+function parseEnergy(str){ const e={comm:0,focus:0,social:0,phys:0}; if(!str) return e; const re=/(\d+)?([💬⚡❤️💪])/g; let m; while((m=re.exec(str))!==null){ const n=m[1]?parseInt(m[1],10):1; e[EMO[m[2]]]+=n; } return e; }
+function energyToString(e){ const p=[]; for(const k of ['comm','focus','social','phys']) if(e[k]>0) p.push(`${e[k]}${ENERGY_NAMES[k]}`); return p.join(' + ')||'—'; }
+function addEnergy(a,b){return {comm:a.comm+b.comm,focus:a.focus+b.focus,social:a.social+b.social,phys:a.phys+b.phys}; }
+function totalEnergy(e){return e.comm+e.focus+e.social+e.phys; }
+function meetsCost(o,c){ return o.comm>=c.comm&&o.focus>=c.focus&&o.social>=c.social&&o.phys>=c.phys; }
+function shuffle(a){const x=a.slice(); for(let i=0;i<x.length-1;i++){const j=i+Math.floor(Math.random()*(x.length-i)); [x[i],x[j]]=[x[j],x[i]];} return x;}
+const toast=(m)=>{const t=document.getElementById('toast'); t.textContent=m; t.style.display='block'; setTimeout(()=>t.style.display='none',1200);};
+
+// --- Deck builders with fallbacks ---
+function expandCopies(records, mapper){ const out=[]; for (const r of records){ const copies=parseInt(String(r.Copies||1).toString().replace(/[^0-9]/g,''))||1; for (let i=0;i<copies;i++) out.push(mapper(r,i)); } return out; }
+function buildActionDeckFromCSV(){
+  try {
+    const deck = expandCopies(ACTION_CSV, (r,i)=>({ id:`A_${r.Name||r.Action||r.Card||('Card'+i)}_${i}`, name:(r.Name||r.Action||r.Card||('Card '+i)), energy:parseEnergy(String(r.Cost||r.Energy||'')), text:r.Category||r.Text||'', type:'action' }));
+    return deck;
+  } catch(e) { console.error('Action CSV parse error', e); return []; }
+}
+function synthActionDeck(){
+  const basics = [
+    {name:'Quick Chat', energy:{comm:1,focus:0,social:0,phys:0}},
+    {name:'Heads Down', energy:{comm:0,focus:1,social:0,phys:0}},
+    {name:'Team Huddle', energy:{comm:0,focus:0,social:1,phys:0}},
+    {name:'Heavy Lifting', energy:{comm:0,focus:0,social:0,phys:1}},
+    {name:'Multi-Task', energy:{comm:1,focus:1,social:0,phys:0}},
+    {name:'Charm Offensive', energy:{comm:1,social:1,focus:0,phys:0}}
+  ];
+  const deck=[]; for (let i=0;i<12;i++) basics.forEach((b,idx)=> deck.push({id:`SYN_${idx}_${i}`, name:b.name, energy:b.energy, text:'', type:'action'}));
+  return deck;
+}
+function buildActionDeck(){
+  const deck = buildActionDeckFromCSV();
+  return (deck && deck.length) ? deck : synthActionDeck();
+}
+function buildDistractionDeck(){ return expandCopies(DISTRACTION_CSV, (r,i)=>({ id:`D_${r.Name||r.Card||('Distraction'+i)}_${i}`, name:(r.Name||r.Card||('Distraction '+i)), mode:(r.Type||'Instant'), effect:r.Effect||r.Text||'', type:'distraction' })); }
+function buildProjectDeck(){ return expandCopies(PROJECT_CSV, (r,i)=>({ id:`P_${r.Name||r.Project||('Project'+i)}_${i}`, name:(r.Name||r.Project||('Project '+i)), tier:r.Tier||'Entry', cost:parseEnergy(String(r.Cost||r.Energy||'')), type:'project' })); }
+
+// --- Breeds & agendas ---
+const BREEDS = {
+  'Labrador': {desc:'Play up to 2 action cards per bidding round', type:'lab'},
+  'Border Collie': {desc:'Draw to 6 at Cleanup', type:'bc'},
+  'Beagle': {desc:'Cleanup: draw 2 Distractions, keep 1', type:'beagle'},
+  'German Shepherd': {desc:'+1⚡ when bidding on Management projects', type:'gs'},
+  'Chihuahua': {desc:'+1💬 when bidding on Executive projects', type:'chi'},
+  'Jack Russell': {desc:'Once/turn: discard 2 → draw 3', type:'jr'}
+};
+const HIDDEN = [
+  { id:'saboteur', name:'Saboteur', text:'If time expires (Turn > 12) and no CEO, you win', check:(S,p)=> (S.turn>12 && !S.winner) },
+  { id:'workaholic', name:'Workaholic', text:'Complete 8 projects', check:(S,p)=> (p.stats.projectsCompleted>=8) },
+  { id:'perfectionist', name:'Perfectionist', text:'Exactly 15 ladder spaces gained from projects', check:(S,p)=> (p.stats.projectSpaces===15) },
+  { id:'attention', name:'Attention Seeker', text:'Be targeted by 4+ Distractions', check:(S,p)=> (p.stats.targetedByDistractions>=4) },
+  { id:'lucky', name:'Lucky Bastard', text:'Complete 2 Executive projects', check:(S,p)=> (p.stats.execProjects>=2) },
+  { id:'enabler', name:'Enabler', text:'At end, all others have ≥2 completed projects', check:(S,p)=> (S.turn>12 && S.players.every(q=> q===p || q.stats.projectsCompleted>=2)) },
+];
+
+// --- State ---
+let S=null;
+let SHOW_ALL=false;
+
+// --- FX ---
+function burst(x,y,color='#e83c90'){ const c=document.getElementById('fx'); const ctx=c.getContext('2d'); const w=c.width=c.offsetWidth, h=c.height=c.offsetHeight;
+  const parts=[]; for(let i=0;i<40;i++) parts.push({x:x*w, y:y*h, vx:(Math.random()-0.5)*4, vy:(Math.random()-0.5)*4-2, life:60, color});
+  function step(){ ctx.clearRect(0,0,w,h); parts.forEach(p=>{ p.x+=p.vx; p.y+=p.vy; p.vy+=0.05; p.life--; ctx.fillStyle=p.color; ctx.fillRect(p.x,p.y,3,3); });
+    for (let i=parts.length-1;i>=0;i--) if (parts[i].life<=0) parts.splice(i,1);
+    if (parts.length) requestAnimationFrame(step); else ctx.clearRect(0,0,w,h); }
+  step();
+}
+function pulseProject(idx){ const pg=document.getElementById('projectGrid'); const card=pg.children[idx]; if (card){ card.classList.add('pulse'); setTimeout(()=>card.classList.remove('pulse'),600); } }
+function shakePlayer(pi){ const list=document.getElementById('playerList'); const card=list.children[pi]; if (card){ card.classList.add('shake'); setTimeout(()=>card.classList.remove('shake'),400); } }
+
+// --- Logging ---
+function logMsg(text){ S.log.unshift('T'+S.turn+' ['+S.phase+'] '+text); renderLog(); }
+function renderLog(){ const box=document.getElementById('logBox'); box.innerHTML=''; S.log.slice(0,40).forEach(line=>{ const div=document.createElement('div'); div.className='logItem'; div.textContent=line; box.appendChild(div); }); }
+
+// --- Game setup ---
+function newGame(namesCSV, breedsCSV, cultureVal){
+  let actionDeck=shuffle(buildActionDeck());
+  let distractionDeck=shuffle(buildDistractionDeck());
+  let projectDeck=shuffle(buildProjectDeck());
+
+  const names=namesCSV.split(',').map(s=>s.trim()).filter(Boolean);
+  const breeds=breedsCSV.split(',').map(s=>s.trim());
+
+  const players=names.map((name,i)=>({
+    id:'P'+i, name, color:(i%6)+1, pos:1, breed: BREEDS[breeds[i]]? breeds[i]:'Labrador',
+    handActions:[], handDistractions:[], bids:[[],[],[]], roundPlaced:0,
+    usedInstantThisTurn:false, usedEndThisTurn:false, revealAgenda:false,
+    stats:{projectsCompleted:0, projectSpaces:0, targetedByDistractions:0, execProjects:0, distractionsPlayed:0},
+    hidden:null
+  }));
+
+  for (const p of players) for (let i=0;i<5;i++) if (actionDeck.length) p.handActions.push(actionDeck.shift());
+  for (const p of players) if (BREEDS[p.breed]?.type==='bc' && actionDeck.length) p.handActions.push(actionDeck.shift());
+  for (const p of players) if (distractionDeck.length) p.handDistractions.push(distractionDeck.shift());
+
+  const agendas=shuffle(HIDDEN.slice()); for (const p of players) p.hidden = agendas.pop() || HIDDEN[0];
+
+  const slots=players.length<=3?2:3; const jobRow=[]; for (let i=0;i<slots;i++) jobRow.push(projectDeck.shift());
+
+  S={ players, actionDeck, distractionDeck, projectDeck,
+    discards:{action:[],distraction:[],project:[]},
+    jobRow, turn:1, phase:'bidding', round:1, first:0, current:0, culture:cultureVal||'none',
+    winner:null, effects:{}, lastResults:[], log:[] };
+
+  S.current = S.first;
+
+  drawBoard(); renderAll();
+  logMsg('Game started. Decks — Action:'+S.actionDeck.length+' • Distraction:'+S.distractionDeck.length+' • Project:'+S.projectDeck.length);
+}
+
+// --- Deck helpers ---
+function drawAction(p, deck){ if (!deck.length) reshuffle('action'); if (deck.length) p.handActions.push(deck.shift()); }
+function drawDistraction(p, deck){ if (!deck.length) reshuffle('distraction'); if (deck.length) p.handDistractions.push(deck.shift()); }
+function drawProject(deck){ if (!deck.length) reshuffle('project'); if (deck.length) return deck.shift(); return null; }
+function reshuffle(type){ const pile=S.discards[type]; if (!pile||!pile.length) return; const t= type==='action'? S.actionDeck : type==='distraction'? S.distractionDeck : S.projectDeck; t.push(...shuffle(pile.splice(0,pile.length))); }
+
+// --- UI core ---
+function drawBoard(){
+  const ring=document.getElementById('ring'); ring.innerHTML=''; const N=50, radius=0.42;
+  for(let i=1;i<=N;i++){ const ang=(i-1)*(2*Math.PI/N)-Math.PI/2; const x=50+Math.cos(ang)*100*radius, y=50+Math.sin(ang)*100*radius;
+    const d=document.createElement('div'); d.className='space '+tierClass(i); d.style.left=`calc(${x}% - 17px)`; d.style.top=`calc(${y}% - 17px)`; d.textContent=i; ring.appendChild(d);}
+}
+function tierClass(i){ if(i<=10) return 'tier1'; if(i<=20) return 'tier2'; if(i<=30) return 'tier3'; if(i<=40) return 'tier4'; return 'tier5'; }
+function el(tag, attrs, ...children){ const n=document.createElement(tag); for(const [k,v] of Object.entries(attrs||{})){ if(k==='class') n.className=v; else if(k==='html') n.innerHTML=v; else n.setAttribute(k,v); } for(const c of children) n.append(c); return n; }
+function colorDot(colorIndex){ const dot=document.createElement('span'); dot.className='dot'; dot.style.background=PLAYER_COLORS[colorIndex]||'#999'; return dot; }
+
+function renderActiveHand(){
+  const box=document.getElementById('activeHand'); box.innerHTML='';
+  if (!S) return;
+  const p=S.players[S.current];
+  if (!p) return;
+  const titleA=el('div',{class:'small'}, 'Action Cards');
+  const titleD=el('div',{class:'small'}, 'Distractions');
+  const g=el('div',{class:'bigHand'});
+
+  if (p.handActions.length===0) g.appendChild(el('div',{class:'small muted'}, '(No Action cards)'));
+  p.handActions.forEach(c=>{
+    const card=el('div',{class:'bigCard'}, el('div',{class:'small'}, c.name), el('div',{class:'small'}, energyToString(c.energy)));
+    if (c._selected) card.classList.add('selected');
+    card.onclick=()=>{ c._selected=!c._selected; renderAll(); };
+    g.appendChild(card);
+  });
+
+  const dwrap=el('div',{class:'bigHand'});
+  if (p.handDistractions.length===0) dwrap.appendChild(el('div',{class:'small muted'}, '(No Distractions)'));
+  p.handDistractions.forEach(c=>{
+    const card=el('div',{class:'bigCard'}, el('div',{class:'small'}, '🎭 '+c.name), el('div',{class:'small muted'}, c.mode));
+    if (c._selected) card.classList.add('selected');
+    card.onclick=()=>{ c._selected=!c._selected; renderAll(); };
+    dwrap.appendChild(card);
+  });
+
+  box.appendChild(titleA); box.appendChild(g);
+  box.appendChild(el('div',{class:'divider'}));
+  box.appendChild(titleD); box.appendChild(dwrap);
+}
+
+function renderAll(){
+  if (!S) return;
+  // Meeples
+  const ring=document.getElementById('ring'); for(const m of Array.from(ring.querySelectorAll('.meeple'))) m.remove();
+  const N=50, radius=0.42; for (const p of S.players){ const i=Math.min(50,Math.max(1,p.pos)); const a=(i-1)*(2*Math.PI/N)-Math.PI/2; const x=50+Math.cos(a)*100*radius, y=50+Math.sin(a)*100*radius;
+    const m=document.createElement('div'); m.className='meeple'; m.dataset.color=p.color; m.title=p.name; m.style.left=`calc(${x}% - 9px)`; m.style.top=`calc(${y}% - 9px)`; ring.appendChild(m);}
+
+  // HUD
+  document.getElementById('turnNum').textContent=S.turn;
+  document.getElementById('phaseName').textContent=S.phase;
+  document.getElementById('roundNum').textContent=S.phase==='bidding'? S.round:'—';
+  document.getElementById('firstPlayer').textContent=S.players[S.first].name;
+  document.getElementById('cultureSelect').value=S.culture;
+
+  // Projects
+  const pg=document.getElementById('projectGrid'); pg.innerHTML='';
+  for (let i=0;i<S.jobRow.length;i++){ const proj=S.jobRow[i]; const slot=el('div',{class:'card projectCard'});
+    if(proj){ slot.appendChild(el('div',{class:'badge'}, proj.tier+' • '+(TIERS[proj.tier]||1)+' move(s)'));
+      slot.appendChild(el('div',{class:'h'}, proj.name));
+      slot.appendChild(el('div',{class:'small muted'}, 'Cost')); slot.appendChild(el('div',{class:'cost'}, energyToString(applyCultureCost(proj.cost)))); }
+    else slot.appendChild(el('div',{class:'small muted'}, 'Empty slot'));
+    pg.appendChild(slot);
+  }
+
+  // Players list
+  const pl=document.getElementById('playerList'); pl.innerHTML='';
+  S.players.forEach((p,pi)=>{
+    const card=el('div',{class:'card'+(pi===S.current?' activeCard':'')});
+    const head=el('div',{class:'row'});
+    head.appendChild(colorDot(p.color));
+    head.appendChild(el('span',{class:'small'}, p.name));
+    head.appendChild(el('span',{class:'small'}, '• '+p.breed));
+    head.appendChild(el('span',{class:'small'}, '• Pos '+p.pos));
+    const activeTag=el('span',{class:'activeBadge'}, (pi===S.current?'Active':'')); head.appendChild(activeTag);
+    const makeActive=el('button',{class:'btn small'}, 'Make Active'); makeActive.onclick=()=>{ S.current=pi; renderAll(); }; head.appendChild(makeActive);
+    card.appendChild(head);
+
+    const breed=el('div',{class:'breedBox small'}, el('strong',{}, 'Breed Power: '), BREEDS[p.breed]?.desc || '—');
+    const agText = el('div', {class:'small'+((!SHOW_ALL && pi!==S.current && !p.revealAgenda)?' blurred':'')} , p.hidden?.text || '—');
+    const ag=el('div',{class:'agendaBox small'}, el('strong',{}, 'Hidden Agenda: '), p.hidden?.name || '—', agText);
+    const toggle=el('button',{class:'btn small'}, (p.revealAgenda?'Hide':'Reveal')); toggle.onclick=()=>{ p.revealAgenda=!p.revealAgenda; renderAll(); };
+    ag.appendChild(el('div',{style:'margin-top:6px'}, toggle)); card.appendChild(breed); card.appendChild(ag);
+
+    const hand=el('div',{class:'handRow'});
+    const canSee = SHOW_ALL || pi===S.current;
+    if (canSee) {
+      if (!p.handActions.length) hand.appendChild(el('div',{class:'small muted'}, '(No Action cards)'));
+      p.handActions.forEach(c=>{ const h=el('div',{class:'cardlet'}, el('div',{class:'small'}, c.name), el('div',{class:'small'}, energyToString(c.energy)));
+        h.onclick=()=>{ c._selected=!c._selected; renderAll(); }; if (c._selected) h.classList.add('selected'); hand.appendChild(h); });
+      if (p.handDistractions.length) hand.appendChild(el('div',{class:'divider'}));
+      p.handDistractions.forEach(c=>{ const h=el('div',{class:'cardlet'}, el('div',{class:'small'}, '🎭 '+c.name), el('div',{class:'small muted'}, c.mode));
+        h.onclick=()=>{ c._selected=!c._selected; renderAll(); }; if (c._selected) h.classList.add('selected'); hand.appendChild(h); });
+    } else hand.appendChild(el('div',{class:'small muted'}, '(Hidden — not active player)'));
+    pl.appendChild(card);
+  });
+
+  // Counts & HUD
+  document.getElementById('aCount').textContent=S.actionDeck.length;
+  document.getElementById('dCount').textContent=S.distractionDeck.length;
+  document.getElementById('pCount').textContent=S.projectDeck.length;
+  document.getElementById('currentPlayerName').textContent=S.players[S.current].name;
+  document.getElementById('allowedThisRound').textContent=allowCountFor(S.players[S.current]);
+  document.getElementById('placedThisRound').textContent=S.players[S.current].roundPlaced;
+
+  renderActiveHand();
+  renderReadout();
+  renderLog();
+}
+
+function applyCultureCost(cost){ const c=JSON.parse(JSON.stringify(cost)); if(S.culture==='startup'){ let left=1; const order=['comm','focus','social','phys'].sort((a,b)=>c[b]-c[a]); for(const k of order){ const t=Math.min(left,c[k]); c[k]-=t; left-=t; if(!left) break; } } return c; }
+function allowCountFor(p){ return BREEDS[p.breed]?.type==='lab'? 2:1; }
+
+function getSelectedAction(p){ return p.handActions.find(c=>c._selected); }
+function getSelectedDistraction(p){ return p.handDistractions.find(c=>c._selected); }
+
+function commitToProject(slotIdx){
+  if (!S || S.phase!=='bidding') return toast('Not in bidding');
+  const p=S.players[S.current];
+  if (p._skipNextRound) return toast('Skipping this round');
+  if (p.roundPlaced>=allowCountFor(p)) return toast('Max this round');
+  const sel=getSelectedAction(p); if(!sel) return toast('Select an Action card');
+  p.bids[slotIdx].push(sel); p.handActions=p.handActions.filter(c=>c!==sel); p.roundPlaced+=1; sel._selected=false;
+  logMsg(p.name+' commits to Project '+(slotIdx+1)); renderAll();
+}
+
+function passRound(){ nextPlayerInBidding(); }
+function nextPlayerInBidding(){
+  do { S.current=(S.current+1)%S.players.length; if(S.current===S.first){ for(const p of S.players) p.roundPlaced=0; S.round+=1; if(S.round>3){ S.phase='reveal'; S.current=S.first; logMsg('Reveal!'); break; } } }
+  while (S.players[S.current]._skipNextRound && (S.players[S.current]._skipNextRound=false));
+  renderAll();
+}
+function advancePhase(){
+  if(S.phase==='bidding') nextPlayerInBidding();
+  else if (S.phase==='reveal'){ resolveProjects(); S.phase='distraction'; S.current=S.first; logMsg('Distraction phase: End-of-Round only'); renderAll(); }
+  else if (S.phase==='distraction'){ S.phase='cleanup'; logMsg('Cleanup'); renderAll(); }
+  else if (S.phase==='cleanup') cleanupAndNextTurn();
+}
+
+// Bids / Resolve / Readout
+function calcBidsForProject(idx){
+  const list=[];
+  for(const p of S.players){
+    let e={comm:0,focus:0,social:0,phys:0}; for(const c of (p.bids[idx]||[])) e=addEnergy(e,c.energy);
+    const proj=S.jobRow[idx];
+    if (proj) { if (BREEDS[p.breed]?.type==='gs' && proj.tier==='Management') e.focus += 1; if (BREEDS[p.breed]?.type==='chi' && proj.tier==='Executive') e.comm += 1; }
+    list.push({player:p, energy:e, count:(p.bids[idx]||[]).length});
+  }
+  return list;
+}
+
+function resolveProjects(){
+  S.lastResults = [];
+  for (let i=0;i<S.jobRow.length;i++){ const proj=S.jobRow[i]; if(!proj) continue;
+    const bids=calcBidsForProject(i); const cost=applyCultureCost(proj.cost);
+    const qualifies=bids.filter(b=>meetsCost(b.energy,cost));
+    let winner=null, move=0;
+    if(qualifies.length){ qualifies.sort((a,b)=> totalEnergy(b.energy)-totalEnergy(a.energy)); winner=qualifies[0].player; move=(TIERS[proj.tier]||1) + (S.culture==='crunch'?1:0); winner.pos=Math.min(50,winner.pos+move); winner.stats.projectsCompleted+=1; winner.stats.projectSpaces+=move; pulseProject(i); burst(0.5,0.5, '#2ecc71'); logMsg('Winner: '+winner.name+' for "'+proj.name+'" (+'+move+')'); if (proj.tier==='Executive') winner.stats.execProjects += 1; }
+    else logMsg('No winner for "'+proj.name+'"');
+    S.lastResults.push({project:proj.name, tier:proj.tier, cost:cost, bids:bids.map(b=>({name:b.player.name, color:b.player.color, energy:b.energy, count:b.count})), winner: winner? winner.name : null, winnerColor: winner? winner.color : null, move: move});
+    S.discards.project.push(proj); const np=drawProject(S.projectDeck); S.jobRow[i]=np||null;
+  }
+  for(const p of S.players){ for(const arr of p.bids) for(const c of arr) S.discards.action.push(c); p.bids=[[],[],[]]; }
+  renderAll();
+  if (S.players.some(p=>p.pos>=50)) alert('CEO reached!');
+}
+
+function renderReadout(){
+  const box=document.getElementById('readoutBox'); box.innerHTML='';
+  if (S.phase==='bidding'){
+    for (let i=0;i<S.jobRow.length;i++){ const proj=S.jobRow[i]; if(!proj) continue;
+      const row=document.createElement('div'); row.className='readRow';
+      row.appendChild(document.createTextNode('Project '+(i+1)+': '+proj.name));
+      S.players.forEach(p=>{ const line=document.createElement('div'); line.className='small';
+        const d=document.createElement('span'); d.className='dot'; d.style.background=PLAYER_COLORS[p.color];
+        line.appendChild(d); line.appendChild(document.createTextNode(p.name+': '+(p.bids[i]?.length||0)+' card(s)'));
+        row.appendChild(line);
+      });
+      box.appendChild(row);
+    }
+  } else {
+    if (!S.lastResults || !S.lastResults.length) { box.textContent='(No results yet)'; return; }
+    S.lastResults.forEach(res=>{ const row=document.createElement('div'); row.className='readRow';
+      const title=document.createElement('div'); title.innerHTML = '<strong>'+res.project+'</strong> ('+res.tier+') — Cost: '+energyToString(res.cost);
+      row.appendChild(title);
+      res.bids.forEach(b=>{ const line=document.createElement('div'); line.className='small';
+        const d=document.createElement('span'); d.className='dot'; d.style.background=PLAYER_COLORS[b.color];
+        line.appendChild(d);
+        const text = b.name+': '+energyToString(b.energy)+' ('+b.count+' card'+(b.count===1?'':'s')+')';
+        line.appendChild(document.createTextNode(text));
+        row.appendChild(line);
+      });
+      const w=document.createElement('div'); w.className='small'; w.style.marginTop='2px';
+      if (res.winner){ const d=document.createElement('span'); d.className='dot'; d.style.background=PLAYER_COLORS[res.winnerColor]; w.appendChild(d); w.appendChild(document.createTextNode('Winner: '+res.winner+' (+'+res.move+' move'+(res.move===1?'':'s')+')')); }
+      else w.textContent='No winner';
+      row.appendChild(w);
+      box.appendChild(row);
+    });
+  }
+}
+
+// Distractions
+function getSelectedDistraction(p){ return p.handDistractions.find(c=>c._selected); }
+function choosePlayerPrompt(promptText, excludeCurrent=false){ const list=S.players.map((q,i)=>`${i}: ${q.name}`).join('\n'); const s=window.prompt(promptText+'\n'+list); const idx=parseInt(s,10); if (isNaN(idx)||idx<0||idx>=S.players.length) return null; if (excludeCurrent && idx===S.current) return null; return S.players[idx]; }
+function consumeDistraction(p, card){ p.handDistractions = p.handDistractions.filter(c=>c!==card); S.discards.distraction.push(card); p.stats.distractionsPlayed += 1; }
+function playSelectedDistraction(){
+  const p=S.players[S.current];
+  const sel=getSelectedDistraction(p);
+  if (!sel) return toast('Select a Distraction');
+  const mode=(sel.mode||'Instant').toLowerCase();
+  if (mode.startsWith('instant')) {
+    if (p.usedInstantThisTurn) return toast('You already used an Instant this turn');
+    if (runDistractionEffect(sel, p)) { consumeDistraction(p, sel); p.usedInstantThisTurn = true; logMsg(p.name+' played Instant "'+sel.name+'"'); }
+  } else {
+    if (S.phase!=='distraction') return toast('End-of-Round can be played in Distraction phase');
+    if (p.usedEndThisTurn) return toast('You already used End-of-Round this turn');
+    if (runDistractionEffect(sel, p)) { consumeDistraction(p, sel); p.usedEndThisTurn = true; logMsg(p.name+' played End-of-Round "'+sel.name+'"'); }
+  }
+  renderAll();
+}
+function runDistractionEffect(card, by){ const name=(card.name||'').toLowerCase(); if (name.includes('squirrel')) return effSquirrel(by); if (name.includes('doorbell')) return effDoorbell(by); if (name.includes('sudden play fight')) return effSwapHands(by); if (name.includes('zoomies')) return effZoomies(by); if (name.includes('treat')) return effTreat(by); if ((card.effect||'').toLowerCase().includes('skip')) return effSkip(by); alert('Resolve manually: '+card.name+' — '+(card.effect||'')); return true; }
+function effSquirrel(by){ const target=choosePlayerPrompt('Squirrel! Choose target to discard 1 bid', true); if (!target) return false; const slots=[0,1,2].filter(i=>(target.bids[i]||[]).length>0); if (!slots.length) return false; const slot=slots[Math.floor(Math.random()*slots.length)]; const popped=target.bids[slot].pop(); if (popped){ S.discards.action.push(popped); target.stats.targetedByDistractions+=1; shakePlayer(S.players.indexOf(target)); logMsg(target.name+' discards 1 bid from Project '+(slot+1)); return true; } return false; }
+function effDoorbell(by){ const target=choosePlayerPrompt('Doorbell: target skips next bidding round', true); if (!target) return false; target._skipNextRound=true; target.stats.targetedByDistractions+=1; shakePlayer(S.players.indexOf(target)); logMsg(target.name+' will skip next bidding round'); return true; }
+function effSwapHands(by){ const target=choosePlayerPrompt('Sudden play fight: swap ACTION hands', true); if (!target) return false; const tmp=by.handActions; by.handActions=target.handActions; target.handActions=tmp; target.stats.targetedByDistractions+=1; shakePlayer(S.players.indexOf(target)); logMsg(by.name+' swapped hands with '+target.name); return true; }
+function effZoomies(by){ const target=choosePlayerPrompt('Zoomies: target returns all bids, skips projects this turn', true); if (!target) return false; for (let i=0;i<3;i++) while ((target.bids[i]||[]).length) target.handActions.push(target.bids[i].pop()); target._skipProjects=true; target.stats.targetedByDistractions+=1; shakePlayer(S.players.indexOf(target)); logMsg(target.name+' returns all bids and skips projects this turn'); return true; }
+function effTreat(by){ const target=choosePlayerPrompt('Treat emergency: target discards 1 action from hand', true); if (!target) return false; if (!target.handActions.length) return false; const idx=Math.floor(Math.random()*target.handActions.length); S.discards.action.push(target.handActions.splice(idx,1)[0]); target.stats.targetedByDistractions+=1; shakePlayer(S.players.indexOf(target)); logMsg(target.name+' discards 1 action'); return true; }
+function effSkip(by){ const target=choosePlayerPrompt('Skip: choose target to skip next bidding round', true); if (!target) return false; target._skipNextRound=true; target.stats.targetedByDistractions+=1; shakePlayer(S.players.indexOf(target)); logMsg(target.name+' will skip next bidding round'); return true; }
+
+// Cleanup & Next Turn
+function drawPeekDistraction(){ if (!S.distractionDeck.length) reshuffle('distraction'); return S.distractionDeck.shift(); }
+function cleanupAndNextTurn(){
+  for (const p of S.players){ p.usedInstantThisTurn=false; p.usedEndThisTurn=false; p.roundPlaced=0; p._skipProjects=false; p._skipNextRound=false; }
+  for (const p of S.players){ if (BREEDS[p.breed]?.type==='beagle'){ const a=drawPeekDistraction(), b=drawPeekDistraction(); const keep=Math.random()<0.5? a:b; const drop=(keep===a? b:a); if (keep) p.handDistractions.push(keep); if (drop) S.discards.distraction.push(drop); } else drawDistraction(p, S.distractionDeck); }
+  for (const p of S.players){ const min=BREEDS[p.breed]?.type==='bc'? 6:5; while (p.handActions.length<min) drawAction(p, S.actionDeck); }
+  S.first=(S.first+1)%S.players.length; S.current=S.first; S.turn+=1;
+  if (S.culture==='crunch' && S.turn>4) S.turn=13;
+  if (S.turn>12 && !S.winner){ S.players.sort((a,b)=>b.pos-a.pos); logMsg('Time! Highest position: '+S.players[0].name); S.winner=S.players[0]; }
+  S.phase='bidding'; S.round=1; renderAll();
+}
+
+// Events
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('startBtn').onclick=()=> document.getElementById('modalSetup').style.display='flex';
+  document.getElementById('closeSetup').onclick=()=> document.getElementById('modalSetup').style.display='none';
+  document.getElementById('applySetup').onclick=()=>{ const names=document.getElementById('namesInput').value||'Player 1, Player 2'; const breeds=document.getElementById('breedsInput').value||'Labrador, Border Collie'; const cul=document.getElementById('setupCulture').value||'none'; document.getElementById('modalSetup').style.display='none'; newGame(names,breeds,cul); };
+
+  document.getElementById('commitP0').onclick=()=>commitToProject(0);
+  document.getElementById('commitP1').onclick=()=>commitToProject(1);
+  document.getElementById('commitP2').onclick=()=>commitToProject(2);
+  document.getElementById('passBtn').onclick=passRound;
+  document.getElementById('advancePhaseBtn').onclick=advancePhase;
+  document.getElementById('cultureSelect').onchange=(e)=>{ if(S){ S.culture=e.target.value; renderAll(); } };
+  document.getElementById('showAllHands').onchange=(e)=>{ SHOW_ALL=e.target.checked; renderAll(); };
+  document.getElementById('playSelectedDistraction').onclick=playSelectedDistraction;
+
+  drawBoard();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,2758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Dogs With Jobs - Multiplayer Memphis</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+  :root {
+    --bg-main: #FAF0E6;
+    --coral: #E76F51;
+    --teal: #65C3BA;
+    --peach: #F4A261;
+    --yellow: #E9C46A;
+    --navy: #2A4B8D;
+    --blue-light: #8B9DC3;
+    
+    --gradient-coral: linear-gradient(135deg, #E76F51, #F4A261);
+    --gradient-teal: linear-gradient(135deg, #65C3BA, #2A4B8D);
+    --gradient-navy: linear-gradient(135deg, #2A4B8D, #1A1A4A);
+    --gradient-rainbow: linear-gradient(45deg, #E76F51, #F4A261, #E9C46A, #65C3BA, #2A4B8D);
+    
+    --shadow-sm: 0 2px 4px rgba(42,75,141,0.1);
+    --shadow-md: 0 4px 12px rgba(42,75,141,0.15);
+    --shadow-lg: 0 8px 24px rgba(42,75,141,0.2);
+    
+    --text-primary: #2A4B8D;
+    --text-secondary: #666;
+    --border-radius: 12px;
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+    background: var(--bg-main);
+    color: var(--text-primary);
+    min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+  }
+  
+  /* Memphis Background */
+  .grid-bg {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: 
+      repeating-linear-gradient(0deg, transparent, transparent 100px, rgba(101,195,186,0.05) 100px, rgba(101,195,186,0.05) 101px),
+      repeating-linear-gradient(90deg, transparent, transparent 100px, rgba(231,111,81,0.05) 100px, rgba(231,111,81,0.05) 101px);
+    pointer-events: none;
+    z-index: 0;
+  }
+  
+  /* Geometric decorations */
+  .geo-decor {
+    position: fixed;
+    pointer-events: none;
+    z-index: 1;
+  }
+  
+  .geo-1 {
+    top: 10%;
+    right: 5%;
+    width: 80px;
+    height: 80px;
+    background: var(--gradient-coral);
+    border-radius: 50%;
+    animation: float 6s ease-in-out infinite;
+  }
+  
+  .geo-2 {
+    bottom: 20%;
+    left: 3%;
+    width: 60px;
+    height: 60px;
+    background: var(--gradient-teal);
+    transform: rotate(45deg);
+    animation: rotate 8s linear infinite;
+  }
+  
+  .geo-3 {
+    top: 50%;
+    left: 10%;
+    width: 0;
+    height: 0;
+    border-left: 40px solid transparent;
+    border-right: 40px solid transparent;
+    border-bottom: 70px solid var(--peach);
+    animation: float 7s ease-in-out infinite reverse;
+  }
+  
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-20px); }
+  }
+  
+  @keyframes rotate {
+    from { transform: rotate(45deg); }
+    to { transform: rotate(405deg); }
+  }
+  
+  /* Progress Track */
+  .progress-track {
+    position: relative;
+    width: 100%;
+    max-width: 1400px; /* Same as game-container */
+    height: 150px;
+    margin: 0.5rem auto 0 auto; /* No bottom margin */
+    padding: 0 1rem; /* SAME padding as game-container to match width */
+    z-index: 100;
+    overflow: visible; /* Changed to visible so content can show */
+    background: transparent;
+    box-sizing: border-box; /* Include padding/borders in width */
+  }
+  
+  #ladder3DContainer {
+    width: 100%;
+    height: 150px;
+    /* Remove flex centering - let canvas fill width */
+  }
+  
+  .track-label {
+    position: absolute;
+    top: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-weight: bold;
+    color: var(--navy);
+    font-size: 0.9rem;
+    background: rgba(255,255,255,0.9);
+    padding: 2px 10px;
+    border-radius: 10px;
+    z-index: 101;
+  }
+  
+  .track-spaces {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    padding: 0.5rem 0;
+  }
+  
+  .space {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--bg-main);
+    border: 2px solid var(--blue-light);
+    position: relative;
+    transition: all 0.3s;
+  }
+  
+  .space.milestone {
+    width: 20px;
+    height: 20px;
+    background: var(--gradient-coral);
+    border: none;
+  }
+  
+  .space.finish {
+    width: 24px;
+    height: 24px;
+    background: var(--gradient-rainbow);
+    border: none;
+  }
+  
+  .pawn {
+    position: absolute;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 3px solid white;
+    transform: translate(-50%, -50%);
+    top: 50%;
+    transition: left 0.5s ease-out;
+    z-index: 10;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+  
+  /* Header */
+  .game-header {
+    background: white;
+    border-bottom: 4px solid var(--navy);
+    padding: 1rem;
+    box-shadow: var(--shadow-lg);
+    position: relative;
+    z-index: 100;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .header-title {
+    font-size: 1.5rem;
+    font-weight: 900;
+    background: var(--gradient-rainbow);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  .turn-info {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+  }
+  
+  .turn-badge {
+    background: var(--gradient-coral);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 25px;
+    font-weight: bold;
+    box-shadow: var(--shadow-md);
+  }
+  
+  .current-player-badge {
+    background: var(--gradient-teal);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 25px;
+    font-weight: bold;
+    box-shadow: var(--shadow-md);
+    animation: pulse 2s infinite;
+  }
+  
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
+  }
+  
+  /* Game Container */
+  .game-container {
+    max-width: 1400px;
+    margin: 1.25rem auto 2rem auto; /* Match distraction drop zone spacing (20px = 1.25rem) */
+    padding: 0 1rem;
+    position: relative;
+    z-index: 10;
+  }
+  
+  /* Opponents Section */
+  .opponents-section {
+    margin-top: 0;
+    margin-bottom: 2rem;
+  }
+  
+  .section-title {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--navy);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .opponents-grid {
+    display: flex;
+    gap: 1rem;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+  }
+  
+  .opponent-card {
+    background: white;
+    border: 3px solid var(--teal);
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    min-width: 180px;
+    box-shadow: var(--shadow-md);
+    position: relative;
+    transition: transform 0.3s;
+  }
+  
+  .opponent-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-lg);
+  }
+  
+  .opponent-card.is-current {
+    border-color: var(--coral);
+    background: linear-gradient(135deg, rgba(231,111,81,0.1), rgba(244,162,97,0.1));
+    animation: glow 2s infinite;
+  }
+  
+  @keyframes glow {
+    0%, 100% { box-shadow: 0 0 20px rgba(231,111,81,0.3); }
+    50% { box-shadow: 0 0 40px rgba(231,111,81,0.5); }
+  }
+  
+  .opponent-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
+  
+  .opponent-name {
+    font-weight: bold;
+    color: var(--navy);
+  }
+  
+  .opponent-position {
+    background: var(--gradient-teal);
+    color: white;
+    padding: 0.2rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.8rem;
+  }
+  
+  .opponent-breed {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    font-style: italic;
+    margin-bottom: 0.5rem;
+  }
+  
+  .opponent-hand {
+    display: flex;
+    gap: 3px;
+    margin-top: 0.5rem;
+  }
+  
+  .card-back {
+    width: 25px;
+    height: 35px;
+    background: var(--gradient-navy);
+    border-radius: 4px;
+    border: 1px solid var(--navy);
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .card-back::after {
+    content: '🐕';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 12px;
+    opacity: 0.3;
+  }
+  
+  /* Projects Section */
+  .projects-section {
+    margin-bottom: 2rem;
+  }
+  
+  .projects-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+  }
+  
+  .project-card {
+    background: white;
+    border: 3px solid var(--yellow);
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    box-shadow: var(--shadow-md);
+    position: relative;
+    transition: all 0.3s;
+  }
+  
+  .project-card.can-drop {
+    border-color: var(--teal);
+    transform: scale(1.05);
+    box-shadow: 0 0 30px rgba(101,195,186,0.4);
+  }
+  
+  .project-tier {
+    position: absolute;
+    top: -12px;
+    right: 12px;
+    background: var(--gradient-coral);
+    color: white;
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    text-transform: uppercase;
+  }
+  
+  /* Bid visualizations */
+  .my-bids {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    z-index: 10;
+  }
+  
+  .bid-icon {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+    animation: bidPlaced 0.3s ease-out;
+  }
+  
+  .opponent-bids {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    display: flex;
+    gap: 4px;
+    z-index: 10;
+  }
+  
+  .opponent-bid-marker {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.3);
+    animation: opponentBid 0.4s ease-out;
+    color: white;
+    font-weight: bold;
+    font-size: 12px;
+  }
+  
+  .opponent-bid-marker.player-0 { background: linear-gradient(135deg, #e76f51, #ff8b6f); }
+  .opponent-bid-marker.player-1 { background: linear-gradient(135deg, #65c3ba, #7fd8cf); }
+  .opponent-bid-marker.player-2 { background: linear-gradient(135deg, #f4a261, #f9b77d); }
+  .opponent-bid-marker.player-3 { background: linear-gradient(135deg, #e9c46a, #f0d282); }
+  .opponent-bid-marker.player-4 { background: linear-gradient(135deg, #2a4b8d, #3a5ba0); }
+  .opponent-bid-marker.player-5 { background: linear-gradient(135deg, #8b9dc3, #9fb0d6); }
+  
+  @keyframes bidPlaced {
+    0% { transform: scale(0) rotate(0deg); opacity: 0; }
+    50% { transform: scale(1.2) rotate(180deg); }
+    100% { transform: scale(1) rotate(360deg); opacity: 1; }
+  }
+  
+  @keyframes opponentBid {
+    0% { transform: translateY(20px) scale(0); opacity: 0; }
+    100% { transform: translateY(0) scale(1); opacity: 1; }
+  }
+  
+  /* Project Winner Announcements */
+  .announcement-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.8);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    animation: fadeIn 0.3s ease-out;
+  }
+  
+  .winner-announcement {
+    background: linear-gradient(135deg, white, #f5f5f5);
+    border: 4px solid var(--coral);
+    border-radius: 20px;
+    padding: 2rem 3rem;
+    margin: 1rem;
+    text-align: center;
+    animation: slideInScale 0.5s ease-out;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  }
+  
+  .winner-name {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--coral);
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+  }
+  
+  .winner-project {
+    font-size: 1.5rem;
+    color: var(--navy);
+    margin-bottom: 1rem;
+  }
+  
+  .winner-energy {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+  }
+  
+  .turn-transition {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 5rem;
+    font-weight: bold;
+    color: white;
+    text-shadow: 0 0 40px rgba(101,195,186,0.8);
+    z-index: 10001;
+    animation: turnReveal 2s ease-out;
+  }
+  
+  .distraction-drop-zone {
+    margin-top: 20px;
+    padding: 30px;
+    border: 3px dashed var(--yellow);
+    border-radius: 15px;
+    background: rgba(244, 162, 97, 0.1);
+    text-align: center;
+    transition: all 0.3s ease;
+  }
+  
+  .distraction-drop-zone.drag-over {
+    background: rgba(244, 162, 97, 0.3);
+    border-color: var(--coral);
+    transform: scale(1.05);
+    box-shadow: 0 0 20px rgba(244, 162, 97, 0.5);
+  }
+  
+  .drop-zone-text {
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: var(--yellow);
+    margin-bottom: 10px;
+  }
+  
+  .drop-zone-hint {
+    font-size: 0.9rem;
+    color: var(--beige);
+    opacity: 0.8;
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  
+  @keyframes slideInScale {
+    from { transform: translateY(-50px) scale(0.8); opacity: 0; }
+    to { transform: translateY(0) scale(1); opacity: 1; }
+  }
+  
+  @keyframes turnReveal {
+    0% { transform: translate(-50%, -50%) scale(0) rotate(-180deg); opacity: 0; }
+    50% { transform: translate(-50%, -50%) scale(1.2) rotate(0deg); opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(1) rotate(0deg); opacity: 0; }
+  }
+  
+  .project-tier.Management {
+    background: var(--gradient-teal);
+  }
+  
+  .project-tier.Executive {
+    background: var(--gradient-navy);
+  }
+  
+  .project-name {
+    font-weight: bold;
+    color: var(--navy);
+    margin: 0.5rem 0;
+    font-size: 1rem;
+  }
+  
+  .project-requirements {
+    display: flex;
+    gap: 0.5rem;
+    margin: 0.5rem 0;
+    flex-wrap: wrap;
+  }
+  
+  .energy-badge {
+    display: inline-block;
+    font-size: 20px;
+    margin: 0 2px;
+  }
+  
+  .bid-marker {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    width: 30px;
+    height: 30px;
+    background: linear-gradient(135deg, #E76F51, #F4A261);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    border: 2px solid white;
+    box-shadow: 0 4px 12px rgba(42,75,141,0.15);
+    animation: bounceIn 0.5s;
+  }
+  
+  @keyframes bounceIn {
+    0% { transform: scale(0); }
+    60% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+  }
+  
+  .project-reward {
+    text-align: center;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 2px dashed var(--yellow);
+    color: var(--teal);
+    font-weight: bold;
+  }
+  
+  /* My Hand Section */
+  .my-hand-section {
+    background: white;
+    border: 4px solid var(--navy);
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-lg);
+    position: sticky;
+    bottom: 20px;
+  }
+  
+  .my-info {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding: 1rem;
+    background: linear-gradient(135deg, rgba(101,195,186,0.1), rgba(42,75,141,0.1));
+    border-radius: var(--border-radius);
+  }
+  
+  .info-block {
+    text-align: center;
+  }
+  
+  .info-label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.25rem;
+  }
+  
+  .info-value {
+    font-weight: bold;
+    color: var(--navy);
+  }
+  
+  .my-agenda {
+    background: var(--gradient-coral);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    text-align: center;
+    font-weight: bold;
+  }
+  
+  .my-cards {
+    display: flex;
+    gap: 1rem;
+    overflow-x: auto;
+    padding: 1rem 0;
+  }
+
+  /* === NEW LAYOUT STYLES === */
+  .my-hand-section-new {
+    background: white;
+    border: 4px solid var(--navy);
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    box-shadow: var(--shadow-lg);
+    display: flex;
+    gap: 1.5rem;
+    min-height: 240px;
+    position: sticky;
+    bottom: 20px;
+    overflow: visible;
+    position: relative;
+  }
+
+  /* Left 70% - Cards Area */
+  .cards-area {
+    flex: 0 0 70%;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: visible;
+    z-index: 1;
+  }
+
+  .my-cards-new {
+    display: flex;
+    gap: 0;
+    overflow: visible;
+    padding: 2rem 1rem;
+    flex: 1;
+    align-items: center;
+    position: relative;
+    z-index: 50;
+    height: 100%;
+  }
+
+  /* Enhanced card styling for Balatro-like effect */
+  .my-cards-new .action-card,
+  .my-cards-new .dog-card {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 1;
+    height: 170px;
+    width: 110px;
+    flex-shrink: 0;
+    margin-right: -45px;
+    position: relative;
+    cursor: grab;
+  }
+
+  .my-cards-new .action-card:first-child,
+  .my-cards-new .dog-card:first-child {
+    margin-left: 0;
+  }
+
+  .my-cards-new .action-card:last-child,
+  .my-cards-new .dog-card:last-child {
+    margin-right: 10px;
+  }
+
+  .my-cards-new .action-card:hover,
+  .my-cards-new .dog-card:hover {
+    z-index: 10;
+    transform: translateY(-25px) scale(1.1);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+    margin-right: -35px;
+    margin-left: 10px;
+  }
+
+  /* Right 30% - Player Info Panel */
+  .player-info-panel {
+    flex: 0 0 28%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    background: linear-gradient(135deg, rgba(101,195,186,0.1), rgba(42,75,141,0.1));
+    border-radius: 15px;
+    padding: 1rem;
+    border: 3px solid var(--navy);
+    min-height: 200px;
+    justify-content: space-between;
+  }
+
+  .player-info-panel .info-block {
+    background: white;
+    padding: 0.6rem;
+    border-radius: 10px;
+    text-align: center;
+    border: 1px solid rgba(42,75,141,0.2);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .player-info-panel .info-label {
+    font-size: 0.8rem;
+    color: var(--navy);
+    font-weight: bold;
+    margin-bottom: 0.25rem;
+  }
+
+  .player-info-panel .info-value {
+    font-weight: bold;
+    color: var(--dark);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .player-info-panel .info-value:hover {
+    transform: scale(1.05);
+  }
+
+  /* Position indicator circle - far right corner */
+  .position-circle {
+    position: absolute;
+    top: -12px;
+    right: -12px;
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, var(--teal), var(--navy));
+    border: 3px solid white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: white;
+    font-size: 1.1rem;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+    z-index: 200;
+  }
+
+  /* Your Hand label on border */
+  .hand-label {
+    position: absolute;
+    top: -14px;
+    left: 20px;
+    background: white;
+    padding: 2px 10px;
+    font-weight: bold;
+    font-size: 0.9rem;
+    color: var(--navy);
+    border: 2px solid var(--navy);
+    border-radius: 12px;
+    z-index: 10;
+  }
+
+  /* Breed bonus energy badge */
+  .breed-bonus-badge {
+    position: absolute;
+    left: -15px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: linear-gradient(135deg, var(--coral), var(--sand));
+    border: 2px solid white;
+    border-radius: 20px;
+    padding: 4px 10px;
+    font-size: 0.9rem;
+    font-weight: bold;
+    color: white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    z-index: 2;
+  }
+
+  /* Removed purple agenda and bonus energy blocks - no longer needed */
+
+  /* Action Buttons */
+  .action-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+  }
+
+  .action-btn {
+    padding: 0.6rem 0.8rem;
+    border: none;
+    border-radius: 15px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    display: none; /* Hidden by default */
+    font-size: 0.85rem;
+  }
+
+  .draw-btn {
+    background: linear-gradient(135deg, #2A4B8D, #8B9DC3);
+    color: white;
+  }
+
+  .end-turn-btn {
+    background: linear-gradient(135deg, #E76F51, #F4A261);
+    color: white;
+  }
+
+  .action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+  }
+  
+  .action-card {
+    background: white;
+    border: 3px solid var(--coral);
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    min-width: 140px;
+    cursor: move;
+    transition: all 0.3s;
+    box-shadow: var(--shadow-md);
+    position: relative;
+  }
+  
+  .action-card:hover {
+    transform: translateY(-10px) rotate(2deg);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--teal);
+  }
+  
+  .action-card.dragging {
+    opacity: 0.5;
+    transform: rotate(5deg);
+  }
+  
+  .card-name {
+    font-weight: bold;
+    color: var(--navy);
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+  }
+  
+  .card-energy {
+    display: flex;
+    gap: 0.25rem;
+    justify-content: center;
+  }
+  
+  /* Tooltip */
+  .tooltip {
+    position: absolute;
+    background: white;
+    border: 3px solid var(--coral);
+    padding: 0.75rem;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-lg);
+    z-index: 1000;
+    display: none;
+    max-width: 250px;
+    pointer-events: none;
+  }
+  
+  .tooltip.show {
+    display: block;
+  }
+  
+  .tooltip-title {
+    font-weight: bold;
+    margin-bottom: 0.25rem;
+    color: var(--navy);
+  }
+  
+  .tooltip-desc {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+  }
+  
+  /* Notifications */
+  .game-notification {
+    position: fixed;
+    top: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    border: 3px solid var(--coral);
+    padding: 1rem 2rem;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-lg);
+    z-index: 10000;
+    animation: slideInBounce 0.5s ease-out;
+  }
+  
+  @keyframes slideInBounce {
+    0% { 
+      transform: translateX(-50%) translateY(-200px);
+      opacity: 0;
+    }
+    60% { 
+      transform: translateX(-50%) translateY(20px);
+      opacity: 1;
+    }
+    100% { 
+      transform: translateX(-50%) translateY(0);
+    }
+  }
+  /* Selected card style for click-to-play fallback */
+  .action-card.selected-card {
+    border: 3px solid var(--teal) !important;
+    box-shadow: 0 0 15px rgba(101, 195, 186, 0.6) !important;
+    transform: scale(1.05);
+    animation: pulse-selected 1s ease-in-out infinite;
+  }
+  
+  @keyframes pulse-selected {
+    0%, 100% { transform: scale(1.05); }
+    50% { transform: scale(1.08); }
+  }
+  
+  /* Mobile Responsive Styles */
+  @media (max-width: 768px) {
+    /* Reorganize hand section for mobile */
+    .my-hand-section-new {
+      flex-direction: column;
+      height: auto;
+      min-height: 300px;
+      padding: 10px;
+    }
+    
+    /* Cards area takes full width on mobile */
+    .cards-area {
+      width: 100% !important;
+      margin-bottom: 15px;
+      max-height: 180px;
+      overflow-x: auto;
+      overflow-y: hidden;
+    }
+    
+    /* Player info panel below cards on mobile */
+    .player-info-panel {
+      width: 100% !important;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 10px;
+      background: linear-gradient(135deg, white, #f0f0f0);
+      border-radius: 10px;
+    }
+    
+    /* Info blocks side by side on mobile */
+    .player-info-panel .info-block {
+      width: 100%;
+      margin-bottom: 10px;
+    }
+    
+    /* Action buttons more prominent on mobile */
+    .action-buttons {
+      display: flex;
+      gap: 10px;
+      width: 100%;
+      margin-top: 10px;
+    }
+    
+    .action-btn {
+      flex: 1;
+      padding: 12px 8px;
+      font-size: 14px;
+      min-height: 44px; /* Touch-friendly size */
+    }
+    
+    /* Cards scroll horizontally on mobile */
+    .my-cards-new {
+      display: flex;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      gap: 8px;
+      padding-bottom: 10px;
+    }
+    
+    .my-cards-new .card {
+      flex: 0 0 auto;
+      min-width: 100px;
+      max-width: 120px;
+    }
+    
+    /* Position circle in top right on mobile */
+    .position-circle {
+      top: 10px;
+      right: 10px;
+      width: 35px;
+      height: 35px;
+      font-size: 16px;
+    }
+    
+    /* Adjust hand label for mobile */
+    .hand-label {
+      top: -8px;
+      font-size: 12px;
+      padding: 2px 8px;
+    }
+    
+    /* Hide some less critical info on very small screens */
+    @media (max-width: 400px) {
+      .info-label {
+        font-size: 10px;
+      }
+      
+      .info-value {
+        font-size: 12px;
+      }
+    }
+  }
+  
+  /* Tablet adjustments */
+  @media (min-width: 769px) and (max-width: 1024px) {
+    .my-hand-section-new {
+      padding: 15px;
+    }
+    
+    .cards-area {
+      width: 65%;
+    }
+    
+    .player-info-panel {
+      width: 35%;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="grid-bg"></div>
+<div class="geo-decor geo-1"></div>
+<div class="geo-decor geo-2"></div>
+<div class="geo-decor geo-3"></div>
+
+<header class="game-header">
+  <h1 class="header-title">🐕 Dogs With Jobs 🎯</h1>
+  <div class="turn-info">
+    <div class="turn-badge" id="turnDisplay">Turn 1</div>
+    <div class="phase-badge" id="phaseDisplay" style="background: linear-gradient(135deg, #65C3BA, #7FD8CF); color: white; padding: 0.5rem 1rem; border-radius: 20px; font-weight: bold; font-size: 0.9rem;">Round 1/3</div>
+    <div class="current-player-badge" id="currentPlayerDisplay">Loading...</div>
+    <button id="endDistractionBtn" onclick="endDistraction()" style="display: none; background: linear-gradient(135deg, #764ba2, #667eea); color: white; padding: 0.5rem 1rem; border: none; border-radius: 25px; font-weight: bold; cursor: pointer; margin-left: 1rem; box-shadow: 0 4px 12px rgba(42,75,141,0.15);">End Distraction Phase</button>
+  </div>
+</header>
+
+<!-- Progress Track -->
+<div class="progress-track">
+  <div class="track-label">🏁 Corporate Ladder Progress</div>
+  <div id="ladder3DContainer">
+    <!-- Three.js canvas will be inserted here -->
+  </div>
+  <div class="track-spaces" id="trackSpaces" style="display: none;">
+    <!-- Original track spaces kept as fallback -->
+  </div>
+</div>
+
+<div class="game-container">
+  <!-- Players -->
+  <div class="opponents-section">
+    <h2 class="section-title">👥 Players</h2>
+    <div class="opponents-grid" id="opponentsArea"></div>
+  </div>
+  
+  <!-- Projects -->
+  <div class="projects-section">
+    <h2 class="section-title">📋 Available Projects</h2>
+    <div class="projects-grid" id="projectsArea"></div>
+    <!-- Instant Distraction Drop Zone -->
+    <div class="distraction-drop-zone" id="distractionDropZone" style="display: none;">
+      <div class="drop-zone-text">🎯 Drop Instant Distraction Here</div>
+      <div class="drop-zone-hint">Play during bidding rounds</div>
+    </div>
+  </div>
+  
+  <!-- My Hand Section (Main Container) -->
+  <div class="my-hand-section-new">
+    <!-- Position Circle in far right corner -->
+    <div class="position-circle" id="positionCircle">1</div>
+    <!-- Your Hand label on border -->
+    <div class="hand-label">🎴 Your Hand</div>
+    
+    <!-- Left 70% - Cards Area -->
+    <div class="cards-area">
+      <div class="my-cards-new" id="myCards"></div>
+    </div>
+    
+    <!-- Right 30% - Player Info Panel -->
+    <div class="player-info-panel">
+      
+      <div class="info-block" id="breedBlock">
+        <div class="info-label">Your Breed</div>
+        <div class="info-value" id="myBreed">Loading...</div>
+      </div>
+      
+      <div class="info-block">
+        <div class="info-label">Hidden Agenda</div>
+        <div class="info-value" id="myAgenda">Loading...</div>
+      </div>
+      
+      <!-- Action Buttons -->
+      <div class="action-buttons">
+        <button id="drawCardBtn" onclick="drawCard()" class="action-btn draw-btn">Draw Card</button>
+        <button id="endTurnBtn" onclick="endTurn()" class="action-btn end-turn-btn">End Turn</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tooltip -->
+<div id="tooltip" class="tooltip">
+  <div class="tooltip-title"></div>
+  <div class="tooltip-desc"></div>
+</div>
+
+<script>
+const socket = io();
+let gameState = null;
+let myPlayerId = null;
+let draggedCard = null;
+let playerColors = {};
+
+// Memphis color palette for players
+const PLAYER_COLORS = ['#E76F51', '#65C3BA', '#F4A261', '#E9C46A', '#2A4B8D', '#8B9DC3'];
+
+// Breed powers data
+const BREED_POWERS = {
+  "Golden Retriever": "+1❤️ each turn when leading",
+  "German Shepherd": "+1⚡ on Management projects", 
+  "Border Collie": "Draw 6 action cards instead of 5",
+  "Chihuahua": "+1💬 on Executive projects",
+  "Labrador": "Can play 2 cards per turn",
+  "Beagle": "Can peek at one opponent's bid",
+  "Husky": "Immune to Pack Mentality distractions",
+  "Pug": "Once per game: steal a completed project",
+  "Dalmatian": "+2💪 when completing a project",
+  "Bloodhound": "Once per game: peek at an opponent's agenda",
+  "Great Dane": "Needs 2 distractions to be affected",
+  "Jack Russell": "Once per turn: discard 2 to draw 3",
+  "Australian Cattle Dog": "Can play 2 distractions per turn"
+};
+
+// Get player ID and room info from session/URL
+const urlParams = new URLSearchParams(window.location.search);
+let storedPlayerId = urlParams.get('playerId') || sessionStorage.getItem('playerId');
+let roomCode = sessionStorage.getItem('roomCode');
+let playerName = sessionStorage.getItem('playerName');
+console.log('Stored player ID:', storedPlayerId, 'Room:', roomCode, 'Name:', playerName);
+
+// Connect and rejoin room
+socket.on('connect', () => {
+  console.log('Socket connected, new ID:', socket.id);
+  myPlayerId = socket.id; // Use current socket ID
+  
+  // If we have room info, rejoin the room
+  if (roomCode && playerName) {
+    console.log('Attempting to rejoin room', roomCode, 'as', playerName);
+    socket.emit('rejoin-game', {
+      roomCode: roomCode,
+      playerName: playerName,
+      oldPlayerId: storedPlayerId
+    });
+  } else {
+    console.log('No room info found, likely a stale session');
+    showNotification('Session expired. Please create or join a new game.');
+    setTimeout(() => {
+      sessionStorage.clear();
+      window.location.href = '/';
+    }, 2000);
+  }
+});
+
+// Initialize progress track
+function initializeTrack() {
+  const track = document.getElementById('trackSpaces');
+  track.innerHTML = '';
+  
+  for (let i = 0; i <= 50; i++) {
+    const space = document.createElement('div');
+    space.className = 'space';
+    if (i % 10 === 0 && i !== 0) {
+      space.className += ' milestone';
+    }
+    if (i === 50) {
+      space.className += ' finish';
+    }
+    space.dataset.position = i;
+    track.appendChild(space);
+  }
+}
+
+// Add pawn to track
+function addPawn(playerId, position, color, emoji = '🐕') {
+  let pawn = document.getElementById(`pawn-${playerId}`);
+  if (!pawn) {
+    pawn = document.createElement('div');
+    pawn.id = `pawn-${playerId}`;
+    pawn.className = 'pawn';
+    pawn.style.background = color;
+    pawn.textContent = emoji;
+    document.getElementById('trackSpaces').appendChild(pawn);
+  }
+  
+  const leftPercent = (position / 50) * 100;
+  pawn.style.left = `${leftPercent}%`;
+}
+
+// Load initial game data from session storage
+const initialData = sessionStorage.getItem('gameData');
+if (initialData) {
+  gameState = JSON.parse(initialData);
+  setTimeout(() => renderGame(), 100);
+}
+
+// Socket events
+socket.on('game-started', (data) => {
+  console.log('Game started event received:', data);
+  gameState = data;
+  // Update player ID to current socket ID
+  myPlayerId = socket.id;
+  renderGame();
+});
+
+socket.on('distraction-played', (data) => {
+  console.log('Distraction played:', data);
+  showNotification(data.effect);
+});
+
+socket.on('player-drew-card', (data) => {
+  console.log('Player drew card:', data);
+  const message = data.playerId === myPlayerId ? 
+    'You drew a card' : 
+    `${data.playerName} drew a card`;
+  showNotification(message);
+});
+
+socket.on('bid-failed', (data) => {
+  console.log('Bid failed:', data);
+  showNotification(data.message);
+  // Re-render to restore the card that was removed from local state
+  renderMyHand();
+});
+
+socket.on('game-updated', (data) => {
+  console.log('Game updated event received:', data);
+  console.log('Previous turn:', gameState?.turn, 'New turn:', data.turn);
+  console.log('Previous current player:', gameState?.currentPlayer, 'New current player:', data.currentPlayer);
+  
+  // Check if we have project winners to announce
+  if (data.projectWinners && data.projectWinners.length > 0) {
+    showProjectWinners(data.projectWinners, () => {
+      // After announcements, show turn transition if it's a new turn
+      if (gameState && data.turn > gameState.turn) {
+        showTurnTransition(data.turn, () => {
+          gameState = data;
+          renderGame();
+        });
+      } else {
+        gameState = data;
+        renderGame();
+      }
+    });
+  } else if (gameState && data.turn > gameState.turn) {
+    showTurnTransition(data.turn, () => {
+      gameState = data;
+      renderGame();
+    });
+  } else {
+    gameState = data;
+    renderGame();
+  }
+});
+
+// Handle rejoin success
+socket.on('rejoin-success', (data) => {
+  console.log('Rejoined game successfully:', data);
+  gameState = data;
+  renderGame();
+});
+
+// Handle errors
+socket.on('error', (message) => {
+  console.error('Server error:', message);
+  showNotification(`Error: ${message}`);
+  
+  // Redirect to lobby for room issues
+  if (message.includes('Room not found') || message.includes('Not in a room')) {
+    showNotification('Room no longer exists. Returning to lobby...');
+    setTimeout(() => {
+      sessionStorage.clear();
+      window.location.href = '/';
+    }, 2000);
+  }
+});
+
+socket.on('opponent-bid', (data) => {
+  showNotification(`${data.playerName || 'Opponent'} placed a bid!`);
+});
+
+// Render game
+function renderGame() {
+  if (!gameState || !gameState.myData) {
+    console.log('Waiting for game state...', gameState);
+    return;
+  }
+  
+  console.log('Rendering game - Turn:', gameState.turn, 'Current player:', gameState.currentPlayerName, 'Is my turn:', gameState.isMyTurn);
+  
+  // Don't assign color here - let it be assigned with all players together
+  
+  // Update header with round and phase info  
+  document.getElementById('turnDisplay').textContent = `Turn ${gameState.turn || 1}`;
+  
+  // Show/hide instant distraction drop zone
+  const dropZone = document.getElementById('distractionDropZone');
+  if (gameState.phase === 'bidding' && gameState.isMyTurn) {
+    dropZone.style.display = 'block';
+    setupDropZone();
+  } else {
+    dropZone.style.display = 'none';
+  }
+  
+  // Show round/phase information
+  let phaseText = '';
+  if (gameState.phase === 'bidding') {
+    phaseText = `Round ${gameState.round || 1}/3`;
+  } else if (gameState.phase === 'distraction') {
+    phaseText = 'Distraction Phase';
+  } else {
+    phaseText = 'Cleanup Phase';
+  }
+  
+  const phaseDisplay = document.getElementById('phaseDisplay');
+  if (phaseDisplay) {
+    phaseDisplay.textContent = phaseText;
+  }
+  
+  document.getElementById('currentPlayerDisplay').textContent = 
+    gameState.isMyTurn ? '🎮 Your Turn!' : `⏳ ${gameState.currentPlayerName}'s Turn`;
+  
+  // Show/hide appropriate buttons based on phase
+  const endBtn = document.getElementById('endTurnBtn');
+  const drawBtn = document.getElementById('drawCardBtn');
+  const endDistBtn = document.getElementById('endDistractionBtn');
+  
+  // Check if player can still play cards
+  const cardsPlayed = gameState.cardsPlayedThisRound || 0;
+  const maxCards = gameState.maxCardsPerRound || 1;
+  const canPlayMore = cardsPlayed < maxCards;
+  
+  if (endBtn) {
+    endBtn.style.display = (gameState.isMyTurn && gameState.phase === 'bidding') ? 'block' : 'none';
+    endBtn.textContent = `End Turn (Round ${gameState.round || 1})`;
+  }
+  
+  if (drawBtn) {
+    // Only show draw button if they haven't played any cards yet
+    drawBtn.style.display = (gameState.isMyTurn && gameState.phase === 'bidding' && cardsPlayed === 0) ? 'block' : 'none';
+  }
+  
+  if (endDistBtn) {
+    endDistBtn.style.display = (gameState.phase === 'distraction') ? 'inline-block' : 'none';
+  }
+  
+  // Render all sections (pawns will be added during renderOpponents)
+  renderOpponents();
+  renderProjects();
+  renderMyHand();
+}
+
+function renderOpponents() {
+  const area = document.getElementById('opponentsArea');
+  area.innerHTML = '';
+  
+  // Clear all existing 3D pawns first to prevent duplicates
+  if (ladderGroup && pawnMeshes) {
+    console.log('Clearing all 3D pawns before re-rendering');
+    Object.keys(pawnMeshes).forEach(id => {
+      if (pawnMeshes[id]) {
+        ladderGroup.remove(pawnMeshes[id]);
+        delete pawnMeshes[id];
+      }
+    });
+  }
+  
+  // Build list of all players (self + opponents)
+  const allPlayers = [];
+  
+  // Add self first
+  if (gameState.myData) {
+    allPlayers.push({
+      id: myPlayerId,
+      name: gameState.myData.name || 'You',
+      breed: gameState.myData.breed,
+      position: gameState.myData.position || 0,
+      handActionSize: gameState.myData.handAction?.length || 0,
+      handDistractionSize: gameState.myData.handDistraction?.length || 0,
+      completedProjects: gameState.myData.completedProjects?.length || 0,
+      distractionsPlayed: gameState.myData.distractionsPlayed || 0,
+      isSelf: true
+    });
+  }
+  
+  // Add opponents
+  if (gameState.opponents) {
+    gameState.opponents.forEach(opp => {
+      allPlayers.push({...opp, isSelf: false});
+    });
+  }
+  
+  // Render all players
+  allPlayers.forEach((player, index) => {
+    const color = PLAYER_COLORS[index % PLAYER_COLORS.length];
+    playerColors[player.id] = color;
+    
+    // Add pawn to 3D ladder - use different emoji for self
+    const emoji = player.isSelf ? '🐕' : '🐶';
+    update3DPawn(player.id, player.position || 1, color, emoji);
+    
+    // Keep old pawn system as fallback
+    addPawn(player.id, player.position || 0, color);
+    
+    const card = document.createElement('div');
+    card.className = 'opponent-card';
+    
+    // Use player color for border and background
+    card.style.borderColor = color;
+    card.style.background = `linear-gradient(135deg, ${color}22, white)`;
+    
+    if (player.name === gameState.currentPlayerName) {
+      card.classList.add('is-current');
+      card.style.borderWidth = '4px';
+      card.style.boxShadow = `0 0 20px ${color}88`;
+    }
+    if (player.isSelf) {
+      card.style.background = `linear-gradient(135deg, ${color}33, white)`;
+    }
+    
+    // Breed tooltip
+    const breedHtml = player.breed ? 
+      `<div class="opponent-breed" onmouseover="showBreedTooltip(event, '${player.breed}')" onmouseout="hideTooltip()">🐕 ${player.breed}</div>` :
+      '<div class="opponent-breed">🐕 Unknown</div>';
+    
+    card.innerHTML = `
+      <div class="opponent-header">
+        <div class="opponent-name">${player.name}${player.isSelf ? ' (You)' : ''}</div>
+        <div class="opponent-position">Lvl ${player.position || 0}</div>
+      </div>
+      ${breedHtml}
+      <div class="opponent-hand">
+        ${Array(player.handActionSize || 0).fill('<div class="card-back"></div>').join('')}
+      </div>
+      <div style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-secondary);">
+        Projects: ${player.completedProjects || 0} | Distractions: ${player.distractionsPlayed || 0}
+      </div>
+    `;
+    
+    card.style.borderColor = color;
+    area.appendChild(card);
+  });
+}
+
+function renderProjects() {
+  const area = document.getElementById('projectsArea');
+  if (!gameState.projects) return;
+  
+  area.innerHTML = '';
+  
+  gameState.projects.forEach((project, index) => {
+    const card = document.createElement('div');
+    card.className = 'project-card';
+    card.dataset.index = index;
+    
+    // Parse requirements from cost object
+    let reqHtml = '';
+    if (project.cost) {
+      const emojis = {
+        comm: '💬',
+        focus: '⚡',
+        social: '❤️',
+        phys: '💪'
+      };
+      
+      const reqs = [];
+      for (const [type, count] of Object.entries(project.cost)) {
+        if (count > 0 && emojis[type]) {
+          for (let i = 0; i < count; i++) {
+            reqs.push(`<span class="energy-badge">${emojis[type]}</span>`);
+          }
+        }
+      }
+      reqHtml = reqs.join('');
+    }
+    
+    // Determine tier
+    const tier = project.tier || (project.reward >= 5 ? 'Executive' : project.reward >= 3 ? 'Management' : 'Entry');
+    
+    // Build my bids visualization
+    let myBidsHtml = '';
+    if (gameState.myData && gameState.myData.bids && gameState.myData.bids[index]) {
+      const myBids = gameState.myData.bids[index];
+      if (myBids.length > 0) {
+        const bidIcons = [];
+        myBids.forEach(bid => {
+          const typeEmoji = {comm: '💬', focus: '⚡', social: '❤️', phys: '💪'};
+          if (bid.card && bid.card.energy) {
+            // Show an icon for each energy type on the card
+            Object.entries(bid.card.energy).forEach(([type, value]) => {
+              if (value > 0) {
+                for (let i = 0; i < value; i++) {
+                  bidIcons.push(`<div class="bid-icon" title="${bid.card.name || 'Bid'}: ${value} ${type}">${typeEmoji[type] || '?'}</div>`);
+                }
+              }
+            });
+          }
+        });
+        if (bidIcons.length > 0) {
+          myBidsHtml = `<div class="my-bids">${bidIcons.join('')}</div>`;
+        }
+      }
+    }
+    
+    // Build opponent bids visualization
+    let opponentBidsHtml = '';
+    if (gameState.opponents) {
+      const opponentBids = [];
+      gameState.opponents.forEach((opp, oppIndex) => {
+        if (opp.bids && opp.bids[index] === true) {
+          const playerColorIndex = gameState.opponents.indexOf(opp);
+          const initial = opp.name.charAt(0).toUpperCase();
+          opponentBids.push(
+            `<div class="opponent-bid-marker player-${playerColorIndex}" title="${opp.name} has bid here">${initial}</div>`
+          );
+        }
+      });
+      if (opponentBids.length > 0) {
+        opponentBidsHtml = `<div class="opponent-bids">${opponentBids.join('')}</div>`;
+      }
+    }
+    
+    card.innerHTML = `
+      ${myBidsHtml}
+      ${opponentBidsHtml}
+      <div class="project-tier ${tier}">${tier}</div>
+      <div class="project-name" style="${myBidsHtml ? 'margin-top: 30px;' : ''}">${project.name}</div>
+      <div class="project-requirements">${reqHtml || '<span style="color: var(--text-secondary); font-size: 0.9rem;">No requirements</span>'}</div>
+      <div class="project-reward">🚀 +${project.reward || 2} spaces</div>
+    `;
+    
+    // Make it a drop zone
+    card.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      if (gameState.isMyTurn) {
+        card.classList.add('can-drop');
+      }
+    });
+    
+    card.addEventListener('dragleave', () => {
+      card.classList.remove('can-drop');
+    });
+    
+    card.addEventListener('drop', (e) => {
+      e.preventDefault();
+      card.classList.remove('can-drop');
+      if (draggedCard && gameState.isMyTurn) {
+        placeBid(index, draggedCard);
+      }
+    });
+    
+    // Click support for when drag doesn't work
+    card.addEventListener('click', () => {
+      if (window.selectedCard && gameState.isMyTurn) {
+        // Play the selected card on this project
+        placeBid(index, window.selectedCard);
+        
+        // Clear selection
+        window.selectedCard = null;
+        document.querySelectorAll('.action-card').forEach(c => {
+          c.classList.remove('selected-card');
+        });
+      }
+    });
+    
+    // Touch support to highlight on hover
+    card.addEventListener('touchstart', () => {
+      if (gameState.isMyTurn) {
+        card.classList.add('can-drop');
+      }
+    });
+    
+    card.addEventListener('touchend', () => {
+      card.classList.remove('can-drop');
+    });
+    
+    area.appendChild(card);
+  });
+}
+
+function renderMyHand() {
+  const myData = gameState.myData;
+  if (!myData) return;
+  
+  // Get my player color
+  const myColor = playerColors[myPlayerId] || PLAYER_COLORS[0];
+  
+  // Color ONLY the container panel with gradient, not individual elements
+  const infoPanel = document.querySelector('.player-info-panel');
+  if (infoPanel) {
+    infoPanel.style.background = `linear-gradient(135deg, ${myColor}33, white)`;
+    infoPanel.style.borderColor = myColor;
+    infoPanel.style.borderWidth = '3px';
+  }
+  
+  // Update my info with breed power tooltip
+  const breedEl = document.getElementById('myBreed');
+  breedEl.textContent = myData.breed || 'Unknown Breed';
+  breedEl.style.textDecoration = 'underline dotted';
+  breedEl.title = BREED_POWERS[myData.breed] || 'No special power';
+  breedEl.onmouseover = (e) => showBreedTooltip(e, myData.breed);
+  breedEl.onmouseout = hideTooltip;
+  
+  // Add breed bonus energy badge if applicable
+  const breedBlock = document.getElementById('breedBlock');
+  const existingBadge = breedBlock.querySelector('.breed-bonus-badge');
+  if (existingBadge) existingBadge.remove();
+  
+  // Check for breed-specific energy bonuses
+  const breedBonuses = {
+    'Golden Retriever': '+1❤️',
+    'German Shepherd': '+1⚡',
+    'Dalmatian': '+2💪',
+    'Chihuahua': '+1💬'
+  };
+  
+  if (breedBonuses[myData.breed]) {
+    const badge = document.createElement('div');
+    badge.className = 'breed-bonus-badge';
+    badge.innerHTML = breedBonuses[myData.breed];
+    breedBlock.appendChild(badge);
+  }
+  
+  // Update agenda to match breed style
+  const agendaEl = document.getElementById('myAgenda');
+  if (myData.agenda) {
+    const req = myData.agenda.text || myData.agenda.description || myData.agenda.requirement || 'Win condition';
+    agendaEl.textContent = myData.agenda.name;
+    agendaEl.style.textDecoration = 'underline dotted';
+    agendaEl.title = req;
+    agendaEl.onmouseover = (e) => {
+      const tooltip = document.getElementById('tooltip');
+      tooltip.querySelector('.tooltip-title').textContent = myData.agenda.name;
+      tooltip.querySelector('.tooltip-desc').textContent = req;
+      tooltip.style.left = e.pageX + 10 + 'px';
+      tooltip.style.top = e.pageY + 10 + 'px';
+      tooltip.classList.add('show');
+    };
+    agendaEl.onmouseout = hideTooltip;
+  } else {
+    agendaEl.textContent = 'No Agenda';
+  }
+  
+  // Update position in circle
+  const posCircle = document.getElementById('positionCircle');
+  if (posCircle) {
+    posCircle.textContent = myData.position || 1;
+  }
+  
+  // Render cards
+  const cardsArea = document.getElementById('myCards');
+  cardsArea.innerHTML = '';
+  
+  if (!myData.handAction || myData.handAction.length === 0) {
+    cardsArea.innerHTML = '<div style="color: var(--text-secondary);">No cards in hand</div>';
+    return;
+  }
+  
+  myData.handAction.forEach((card, index) => {
+    const cardEl = document.createElement('div');
+    const isUsed = myData.usedCards && myData.usedCards.includes(card.id);
+    cardEl.className = 'action-card' + (isUsed ? ' used-card' : '');
+    
+    // Check if player has reached their card limit for this round
+    const cardsPlayed = gameState.cardsPlayedThisRound || 0;
+    const maxCards = gameState.maxCardsPerRound || 1;
+    const canPlayMore = cardsPlayed < maxCards;
+    
+    // Cards are draggable only if: it's my turn, card not used, and haven't hit limit
+    cardEl.draggable = gameState.isMyTurn && !isUsed && canPlayMore;
+    
+    // Add visual indicator for used cards or when limit reached
+    if (isUsed) {
+      cardEl.style.opacity = '0.5';
+      cardEl.style.background = 'linear-gradient(135deg, #cccccc, #eeeeee)';
+    } else if (!canPlayMore && gameState.isMyTurn) {
+      cardEl.style.opacity = '0.7';
+      cardEl.style.cursor = 'not-allowed';
+    }
+    
+    // Parse card energy object correctly
+    let energyHtml = '';
+    if (card.energy) {
+      const emojis = {
+        comm: '💬',
+        focus: '⚡',
+        social: '❤️',
+        phys: '💪'
+      };
+      
+      const energies = [];
+      for (const [type, count] of Object.entries(card.energy)) {
+        if (count > 0 && emojis[type]) {
+          for (let i = 0; i < count; i++) {
+            energies.push(`<span class="energy-badge">${emojis[type]}</span>`);
+          }
+        }
+      }
+      energyHtml = energies.join('');
+    }
+    
+    cardEl.innerHTML = `
+      <div class="card-name">${card.name}</div>
+      <div class="card-energy">${energyHtml}</div>
+    `;
+    
+    if (gameState.isMyTurn) {
+      // Desktop drag support
+      cardEl.addEventListener('dragstart', (e) => {
+        draggedCard = card;
+        cardEl.classList.add('dragging');
+      });
+      
+      cardEl.addEventListener('dragend', () => {
+        draggedCard = null;
+        cardEl.classList.remove('dragging');
+      });
+      
+      // Touch support for mobile
+      let touchItem = null;
+      let touchOffset = {x: 0, y: 0};
+      
+      cardEl.addEventListener('touchstart', (e) => {
+        if (!canPlayMore) return;
+        
+        // Prevent default to stop scrolling
+        e.preventDefault();
+        
+        const touch = e.touches[0];
+        touchItem = cardEl.cloneNode(true);
+        touchItem.style.position = 'fixed';
+        touchItem.style.zIndex = '9999';
+        touchItem.style.pointerEvents = 'none';
+        touchItem.style.opacity = '0.8';
+        touchItem.style.transform = 'rotate(5deg) scale(1.1)';
+        
+        const rect = cardEl.getBoundingClientRect();
+        touchOffset.x = touch.clientX - rect.left;
+        touchOffset.y = touch.clientY - rect.top;
+        
+        touchItem.style.left = (touch.clientX - touchOffset.x) + 'px';
+        touchItem.style.top = (touch.clientY - touchOffset.y) + 'px';
+        
+        document.body.appendChild(touchItem);
+        draggedCard = card;
+        cardEl.classList.add('dragging');
+      });
+      
+      cardEl.addEventListener('touchmove', (e) => {
+        if (!touchItem) return;
+        e.preventDefault();
+        
+        const touch = e.touches[0];
+        touchItem.style.left = (touch.clientX - touchOffset.x) + 'px';
+        touchItem.style.top = (touch.clientY - touchOffset.y) + 'px';
+        
+        // Find element under the touch point
+        touchItem.style.pointerEvents = 'none';
+        const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+        touchItem.style.pointerEvents = 'auto';
+        
+        // Remove hover effect from all projects
+        document.querySelectorAll('.project-card').forEach(p => {
+          p.classList.remove('can-drop');
+        });
+        
+        // Add hover effect to project under touch
+        const projectCard = elementBelow?.closest('.project-card');
+        if (projectCard && gameState.isMyTurn) {
+          projectCard.classList.add('can-drop');
+        }
+      });
+      
+      cardEl.addEventListener('touchend', (e) => {
+        if (!touchItem) return;
+        e.preventDefault();
+        
+        const touch = e.changedTouches[0];
+        
+        // Find drop target
+        touchItem.style.display = 'none';
+        const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+        touchItem.style.display = 'block';
+        
+        // Check if dropped on a valid project
+        const projectCard = elementBelow?.closest('.project-card');
+        if (projectCard && draggedCard) {
+          const projectIndex = projectCard.dataset.index;
+          if (projectIndex !== undefined) {
+            placeBid(parseInt(projectIndex), draggedCard);
+          }
+        }
+        
+        // Cleanup
+        if (touchItem) {
+          document.body.removeChild(touchItem);
+          touchItem = null;
+        }
+        
+        // Remove hover effect from all projects
+        document.querySelectorAll('.project-card').forEach(p => {
+          p.classList.remove('can-drop');
+        });
+        
+        draggedCard = null;
+        cardEl.classList.remove('dragging');
+      });
+      
+      // Click fallback for problematic browsers
+      cardEl.addEventListener('click', (e) => {
+        if (!canPlayMore) return;
+        
+        // Check if card is already selected
+        const wasSelected = cardEl.classList.contains('selected-card');
+        
+        // Remove selection from all cards
+        document.querySelectorAll('.action-card').forEach(c => {
+          c.classList.remove('selected-card');
+        });
+        
+        if (!wasSelected) {
+          // Select this card
+          cardEl.classList.add('selected-card');
+          window.selectedCard = card;
+          
+          // Show instruction
+          showNotification('Card Selected', 'Now click on a project to play this card');
+        } else {
+          window.selectedCard = null;
+        }
+      });
+    }
+    
+    cardsArea.appendChild(cardEl);
+  });
+  
+  // Add distraction cards if any
+  if (myData.handDistraction && myData.handDistraction.length > 0) {
+    myData.handDistraction.forEach((card, index) => {
+      const cardEl = document.createElement('div');
+      cardEl.className = 'action-card distraction-card';
+      cardEl.style.borderColor = 'var(--coral)';
+      cardEl.style.background = 'linear-gradient(135deg, rgba(231,111,81,0.1), white)';
+      cardEl.style.position = 'relative';
+      
+      // Determine if instant or end-of-turn
+      const isInstant = card.type === 'instant';
+      const badgeColor = isInstant ? 'var(--teal)' : 'var(--yellow)';
+      const badgeText = isInstant ? 'INSTANT' : 'END';
+      
+      cardEl.innerHTML = `
+        <div style="position: absolute; top: -10px; right: -5px; background: ${badgeColor}; color: white; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.7rem; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">${badgeText}</div>
+        <div class="card-name">${card.name}</div>
+        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.5rem;">${card.effect || 'Distraction'}</div>
+      `;
+      
+      // Make instant cards draggable during bidding phase
+      if (isInstant && gameState.phase === 'bidding') {
+        cardEl.draggable = true;
+        cardEl.dataset.cardIndex = index;
+        cardEl.dataset.cardType = 'distraction';
+        cardEl.dataset.cardId = card.id;
+        cardEl.style.cursor = 'grab';
+        
+        cardEl.addEventListener('dragstart', (e) => {
+          draggedCard = card;
+          draggedCardElement = cardEl;
+          draggedCardIndex = index;
+          cardEl.classList.add('dragging');
+          cardEl.style.opacity = '0.5';
+          e.dataTransfer.effectAllowed = 'move';
+        });
+        
+        cardEl.addEventListener('dragend', () => {
+          draggedCard = null;
+          draggedCardElement = null;
+          draggedCardIndex = null;
+          cardEl.classList.remove('dragging');
+          cardEl.style.opacity = '1';
+        });
+        
+        // Touch support for mobile
+        let touchItem = null;
+        let touchOffset = {x: 0, y: 0};
+        
+        cardEl.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          
+          const touch = e.touches[0];
+          touchItem = cardEl.cloneNode(true);
+          touchItem.style.position = 'fixed';
+          touchItem.style.zIndex = '9999';
+          touchItem.style.pointerEvents = 'none';
+          touchItem.style.opacity = '0.8';
+          touchItem.style.transform = 'rotate(5deg) scale(1.1)';
+          
+          const rect = cardEl.getBoundingClientRect();
+          touchOffset.x = touch.clientX - rect.left;
+          touchOffset.y = touch.clientY - rect.top;
+          
+          touchItem.style.left = (touch.clientX - touchOffset.x) + 'px';
+          touchItem.style.top = (touch.clientY - touchOffset.y) + 'px';
+          
+          document.body.appendChild(touchItem);
+          draggedCard = card;
+          draggedCardElement = cardEl;
+          draggedCardIndex = index;
+          cardEl.classList.add('dragging');
+        });
+        
+        cardEl.addEventListener('touchmove', (e) => {
+          if (!touchItem) return;
+          e.preventDefault();
+          
+          const touch = e.touches[0];
+          touchItem.style.left = (touch.clientX - touchOffset.x) + 'px';
+          touchItem.style.top = (touch.clientY - touchOffset.y) + 'px';
+          
+          // Find element under the touch point
+          touchItem.style.pointerEvents = 'none';
+          const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+          touchItem.style.pointerEvents = 'auto';
+          
+          // Check if it's the distraction drop zone
+          const dropZone = document.getElementById('distractionDropZone');
+          if (dropZone) {
+            if (elementBelow === dropZone || dropZone.contains(elementBelow)) {
+              dropZone.classList.add('drop-hover');
+            } else {
+              dropZone.classList.remove('drop-hover');
+            }
+          }
+        });
+        
+        cardEl.addEventListener('touchend', (e) => {
+          if (!touchItem) return;
+          e.preventDefault();
+          
+          const touch = e.changedTouches[0];
+          
+          // Find drop target
+          touchItem.style.display = 'none';
+          const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+          touchItem.style.display = 'block';
+          
+          // Check if dropped on distraction zone
+          const dropZone = document.getElementById('distractionDropZone');
+          if (dropZone && (elementBelow === dropZone || dropZone.contains(elementBelow))) {
+            playInstantDistraction(card, index);
+          }
+          
+          // Cleanup
+          if (touchItem) {
+            document.body.removeChild(touchItem);
+            touchItem = null;
+          }
+          
+          if (dropZone) {
+            dropZone.classList.remove('drop-hover');
+          }
+          
+          draggedCard = null;
+          draggedCardElement = null;
+          draggedCardIndex = null;
+          cardEl.classList.remove('dragging');
+        });
+        
+        // Click fallback
+        cardEl.addEventListener('click', (e) => {
+          // Check if card is already selected
+          const wasSelected = cardEl.classList.contains('selected-card');
+          
+          // Remove selection from all cards
+          document.querySelectorAll('.action-card').forEach(c => {
+            c.classList.remove('selected-card');
+          });
+          
+          if (!wasSelected) {
+            // Select this card
+            cardEl.classList.add('selected-card');
+            window.selectedDistraction = {card: card, index: index};
+            
+            // Show instruction
+            showNotification('Distraction Selected', 'Click the "Play Instant Distraction" zone or another player');
+          } else {
+            window.selectedDistraction = null;
+          }
+        });
+      }
+      
+      cardsArea.appendChild(cardEl);
+    });
+  }
+}
+
+function placeBid(projectIndex, card) {
+  // Check if player can still play cards
+  const cardsPlayed = gameState.cardsPlayedThisRound || 0;
+  const maxCards = gameState.maxCardsPerRound || 1;
+  
+  console.log(`Breed: ${gameState.myData.breed}, Cards played: ${cardsPlayed}, Max: ${maxCards}`);
+  
+  if (cardsPlayed >= maxCards) {
+    const breed = gameState.myData.breed;
+    const message = breed === 'Labrador' ? 
+      `You've already played ${maxCards} cards this round (Labrador limit)` :
+      `You've already played your card this round`;
+    showNotification(message);
+    return;
+  }
+  
+  const cardIndex = gameState.myData.handAction.indexOf(card);
+  console.log('Placing bid - Project:', projectIndex, 'Card index:', cardIndex, 'Card:', card);
+  
+  socket.emit('place-bid', {
+    projectIndex: projectIndex,
+    cardType: 'action',
+    cardIndex: cardIndex
+  });
+  
+  // DON'T update local count - wait for server response
+  // The server will tell us the updated count
+  
+  // Hide draw card button since we've played
+  const drawBtn = document.getElementById('drawCardBtn');
+  if (drawBtn) {
+    drawBtn.style.display = 'none';
+  }
+  
+  // Show notification based on expected result
+  const expectedCards = cardsPlayed + 1;
+  if (expectedCards >= maxCards) {
+    const message = maxCards > 1 ? 
+      `You've played ${expectedCards}/${maxCards} cards - turn limit reached!` :
+      `Card played - you've reached your 1 card limit for this round`;
+    showNotification(message);
+  } else {
+    showNotification('Bid placed!');
+  }
+  
+  // DON'T update local state here - wait for server confirmation
+  // The server will send back game-updated event if bid is valid
+  // If invalid, we'll get bid-failed event
+}
+
+function endTurn() {
+  console.log('\n=== END TURN CLICKED ===');
+  console.log('Current game state:', gameState);
+  console.log('Is my turn?', gameState.isMyTurn);
+  console.log('My player ID:', myPlayerId);
+  console.log('Socket ID:', socket.id);
+  console.log('Socket connected?', socket.connected);
+  
+  if (!gameState.isMyTurn) {
+    console.log('ERROR: Not my turn!');
+    showNotification('Not your turn!');
+    return;
+  }
+  
+  console.log('Emitting end-turn event...');
+  socket.emit('end-turn');
+  showNotification('Ending turn...');
+  document.getElementById('endTurnBtn').style.display = 'none';
+  document.getElementById('drawCardBtn').style.display = 'none';
+  console.log('=== END TURN SENT ===\n');
+}
+
+function drawCard() {
+  console.log('=== DRAW CARD CLIENT DEBUG ===');
+  console.log('Drawing a card instead of playing');
+  console.log('Room code:', roomCode);
+  console.log('Is my turn:', gameState.isMyTurn);
+  console.log('Current hand size:', gameState.myData.handAction.length);
+  console.log('Current player:', gameState.currentPlayer);
+  console.log('My index:', gameState.myIndex);
+  
+  if (!gameState.isMyTurn) {
+    showNotification('Not your turn!');
+    return;
+  }
+  
+  // First test if socket communication works at all
+  console.log('Testing basic socket communication...');
+  socket.emit('ping', { test: 'basic communication', timestamp: Date.now() });
+  
+  console.log('Testing draw-specific communication...');
+  socket.emit('test-draw', { test: 'communication' });
+  
+  console.log('Emitting draw-card event to server...');
+  socket.emit('draw-card', {
+    roomCode: roomCode
+  });
+  showNotification('Drawing a card...');
+  document.getElementById('drawCardBtn').style.display = 'none';
+  document.getElementById('endTurnBtn').style.display = 'none';
+  console.log('Draw card client request sent');
+}
+
+// Add test response handlers
+socket.on('pong', (data) => {
+  console.log('=== PONG RECEIVED ===', data);
+});
+
+socket.on('test-draw-response', (data) => {
+  console.log('=== TEST RESPONSE RECEIVED ===', data);
+});
+
+function endDistraction() {
+  console.log('Ending distraction phase');
+  socket.emit('end-distraction');
+  showNotification('Moving to next turn...');
+  document.getElementById('endDistractionBtn').style.display = 'none';
+}
+
+// Breed tooltip
+function showBreedTooltip(event, breed) {
+  const tooltip = document.getElementById('tooltip');
+  const power = BREED_POWERS[breed] || "No special power";
+  
+  tooltip.querySelector('.tooltip-title').textContent = breed;
+  tooltip.querySelector('.tooltip-desc').textContent = power;
+  
+  tooltip.style.left = event.pageX + 10 + 'px';
+  tooltip.style.top = event.pageY + 10 + 'px';
+  tooltip.classList.add('show');
+}
+
+function hideTooltip() {
+  document.getElementById('tooltip').classList.remove('show');
+}
+
+function showNotification(text) {
+  const notif = document.createElement('div');
+  notif.className = 'game-notification';
+  notif.textContent = text;
+  document.body.appendChild(notif);
+  
+  setTimeout(() => {
+    notif.style.animation = 'slideInBounce 0.5s ease-out reverse';
+    setTimeout(() => notif.remove(), 500);
+  }, 2500);
+}
+
+function showProjectWinners(winners, callback) {
+  if (!winners || winners.length === 0) {
+    callback();
+    return;
+  }
+  
+  const overlay = document.createElement('div');
+  overlay.className = 'announcement-overlay';
+  
+  let currentIndex = 0;
+  
+  function showNextWinner() {
+    if (currentIndex >= winners.length) {
+      setTimeout(() => {
+        overlay.remove();
+        callback();
+      }, 500);
+      return;
+    }
+    
+    const winner = winners[currentIndex];
+    const typeEmoji = {comm: '💬', focus: '⚡', social: '❤️', phys: '💪'};
+    
+    // Build energy icons
+    const energyIcons = [];
+    if (winner.energyUsed) {
+      Object.entries(winner.energyUsed).forEach(([type, value]) => {
+        for (let i = 0; i < value; i++) {
+          energyIcons.push(typeEmoji[type] || '?');
+        }
+      });
+    }
+    
+    const announcement = document.createElement('div');
+    announcement.className = 'winner-announcement';
+    announcement.innerHTML = `
+      <div class="winner-name">${winner.playerName}</div>
+      <div class="winner-project">Completed: ${winner.projectName}</div>
+      <div class="winner-energy">${energyIcons.join(' ')}</div>
+      <div style="color: var(--teal); font-size: 1.2rem;">+${winner.reward} Spaces!</div>
+    `;
+    
+    overlay.innerHTML = '';
+    overlay.appendChild(announcement);
+    
+    currentIndex++;
+    setTimeout(showNextWinner, 2500);
+  }
+  
+  document.body.appendChild(overlay);
+  showNextWinner();
+}
+
+function showTurnTransition(turnNumber, callback) {
+  const transition = document.createElement('div');
+  transition.className = 'turn-transition';
+  transition.textContent = `TURN ${turnNumber}`;
+  document.body.appendChild(transition);
+  
+  setTimeout(() => {
+    transition.remove();
+    callback();
+  }, 2000);
+}
+
+// Play instant distraction card
+function playInstantDistraction(card, index) {
+  if (!card || card.type !== 'instant') return;
+  
+  // Show target selection dialog for targeted distractions
+  if (card.targetRequired) {
+    selectTargetForDistraction(card);
+  } else {
+    // Play non-targeted instant distraction
+    socket.emit('play-instant-distraction', {
+      roomCode: roomCode,
+      cardId: card.id,
+      target: null
+    });
+    showNotification(`Playing ${card.name}!`);
+  }
+}
+
+// Setup instant distraction drop zone
+function setupDropZone() {
+  const dropZone = document.getElementById('distractionDropZone');
+  if (!dropZone) return;
+  
+  // Remove existing listeners
+  const newDropZone = dropZone.cloneNode(true);
+  dropZone.parentNode.replaceChild(newDropZone, dropZone);
+  
+  newDropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    if (draggedCard && draggedCard.type === 'instant') {
+      newDropZone.classList.add('drag-over');
+      e.dataTransfer.dropEffect = 'move';
+    }
+  });
+  
+  newDropZone.addEventListener('dragleave', () => {
+    newDropZone.classList.remove('drag-over');
+  });
+  
+  newDropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    newDropZone.classList.remove('drag-over');
+    
+    if (draggedCard && draggedCard.type === 'instant') {
+      // Show target selection dialog for targeted distractions
+      if (draggedCard.targetRequired) {
+        selectTargetForDistraction(draggedCard);
+      } else {
+        // Play non-targeted instant distraction
+        socket.emit('play-instant-distraction', {
+          roomCode: roomCode,
+          cardId: draggedCard.id,
+          target: null
+        });
+        showNotification(`Playing ${draggedCard.name}!`);
+      }
+      draggedCard = null;
+      draggedCardElement = null;
+      draggedCardIndex = null;
+    }
+  });
+  
+  // Click support for fallback
+  newDropZone.addEventListener('click', () => {
+    if (window.selectedDistraction) {
+      const {card, index} = window.selectedDistraction;
+      if (card.type === 'instant') {
+        playInstantDistraction(card, index);
+        
+        // Clear selection
+        window.selectedDistraction = null;
+        document.querySelectorAll('.action-card').forEach(c => {
+          c.classList.remove('selected-card');
+        });
+      }
+    }
+  });
+}
+
+// Select target for instant distraction
+function selectTargetForDistraction(card) {
+  // Create target selection overlay
+  const overlay = document.createElement('div');
+  overlay.className = 'announcement-overlay';
+  
+  const container = document.createElement('div');
+  container.style.background = 'white';
+  container.style.padding = '2rem';
+  container.style.borderRadius = '15px';
+  container.style.textAlign = 'center';
+  container.style.minWidth = '400px';
+  
+  container.innerHTML = `
+    <h3 style="color: var(--coral); margin-bottom: 1rem;">Select Target for ${card.name}</h3>
+    <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">${card.effect}</p>
+    <div id="targetButtons" style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;"></div>
+    <button onclick="this.closest('.announcement-overlay').remove()" style="margin-top: 1rem; padding: 0.5rem 1rem; background: var(--text-secondary); color: white; border: none; border-radius: 5px; cursor: pointer;">Cancel</button>
+  `;
+  
+  overlay.appendChild(container);
+  document.body.appendChild(overlay);
+  
+  // Add target buttons for each opponent
+  const targetButtons = document.getElementById('targetButtons');
+  if (gameState.opponents) {
+    gameState.opponents.forEach(opp => {
+      const btn = document.createElement('button');
+      btn.style.padding = '0.5rem 1rem';
+      btn.style.background = 'var(--teal)';
+      btn.style.color = 'white';
+      btn.style.border = 'none';
+      btn.style.borderRadius = '5px';
+      btn.style.cursor = 'pointer';
+      btn.textContent = opp.name;
+      btn.onclick = () => {
+        socket.emit('play-instant-distraction', {
+          roomCode: roomCode,
+          cardId: card.id,
+          target: opp.id
+        });
+        showNotification(`Playing ${card.name} on ${opp.name}!`);
+        overlay.remove();
+      };
+      targetButtons.appendChild(btn);
+    });
+  }
+}
+
+// Three.js 3D Ladder Visualization
+let scene, camera, renderer, ladderGroup, pawnMeshes = {}, isDragging = false, dragStart = {x: 0}, cameraStart = {x: 0};
+
+function initialize3DLadder() {
+  const container = document.getElementById('ladder3DContainer');
+  if (!container || typeof THREE === 'undefined') return;
+  
+  // Clear container
+  container.innerHTML = '';
+  
+  // Setup Three.js scene with TRANSPARENT background
+  scene = new THREE.Scene();
+  scene.background = null; // Transparent background
+  
+  // Use the ACTUAL container width - it already matches hand section
+  const width = container.clientWidth; // Use full available width (should be 1368px)
+  const height = 150;
+  const aspect = width / height;
+  
+  console.log('Canvas width being used:', width, 'px (should be 1368px)');
+  
+  // Camera view - adjust to show proper section of ladder starting at position 1
+  const viewWidth = 23.45; // Half of 46.9 total view width
+  const viewHeight = viewWidth / aspect;
+  camera = new THREE.OrthographicCamera(-viewWidth, viewWidth, viewHeight, -viewHeight, 0.1, 100);
+  // Position 1 is at x=-117.5, we want it fully visible at left edge
+  // With viewWidth=23.45, left edge is at camera.x - 23.45
+  // Subtract 3 units offset to move camera LEFT so cylinder and label are fully visible
+  // So camera should be at -117.5 + 23.45 - 3 = -97
+  camera.position.set(-97, 3, 10); // Position to show spot 1 fully visible
+  camera.lookAt(camera.position.x, 0, 0);  // Look at y=0 to match drag behavior
+  
+  // Renderer with alpha for transparency
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setSize(width, height);
+  renderer.setClearColor(0x000000, 0); // Fully transparent
+  renderer.shadowMap.enabled = true;
+  
+  // Don't override the actual pixel dimensions with CSS
+  renderer.domElement.style.display = 'block';
+  
+  container.appendChild(renderer.domElement);
+  
+  // Lighting with shadows
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+  scene.add(ambientLight);
+  
+  const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+  directionalLight.position.set(5, 10, 5);
+  directionalLight.castShadow = true;
+  directionalLight.shadow.camera.left = -200;
+  directionalLight.shadow.camera.right = 200;
+  directionalLight.shadow.camera.top = 20;
+  directionalLight.shadow.camera.bottom = -20;
+  scene.add(directionalLight);
+  
+  // Add a ground plane for shadows
+  const groundGeometry = new THREE.PlaneGeometry(400, 50);
+  const groundMaterial = new THREE.ShadowMaterial({ opacity: 0.3 });
+  const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.y = -2;
+  ground.receiveShadow = true;
+  scene.add(ground);
+  
+  // Create group for all ladder elements
+  ladderGroup = new THREE.Group();
+  scene.add(ladderGroup);
+  
+  // Level colors and boundaries
+  const levels = [
+    { name: 'INTERN', start: 1, end: 10, color: 0xE9C46A },
+    { name: 'JUNIOR', start: 11, end: 20, color: 0xF4A261 },
+    { name: 'SENIOR', start: 21, end: 30, color: 0x65C3BA },
+    { name: 'MANAGEMENT', start: 31, end: 40, color: 0x2A4B8D },
+    { name: 'EXECUTIVE', start: 41, end: 49, color: 0x264653 },
+    { name: 'CEO', start: 50, end: 50, color: 0xFFD700 }
+  ];
+  
+  // Fixed settings from debugging
+  window.cylinderRadius = window.cylinderRadius || 1.95;
+  window.cylinderSpacing = window.cylinderSpacing || 5; // Reduced spacing
+  const spacing = window.cylinderSpacing;
+  const startX = -(50 * spacing / 2) + spacing/2; // Center the track properly
+  
+  // No more ugly background sections - spaces will be colored instead
+  
+  // Create 50 circular spaces - colored by level
+  for (let i = 1; i <= 50; i++) {
+    const level = levels.find(l => i >= l.start && i <= l.end);
+    
+    // Space circle - dynamically sized for debugging
+    const geometry = new THREE.CylinderGeometry(window.cylinderRadius, window.cylinderRadius, 0.8, 32);
+    const material = new THREE.MeshPhongMaterial({ 
+      color: level.color,
+      emissive: level.color,
+      emissiveIntensity: 0.1
+    });
+    
+    const space = new THREE.Mesh(geometry, material);
+    space.position.set(startX + i * spacing, -1.5, 0);  // Moved down closer to bottom
+    // No shadows on cylinders for cleaner look
+    
+    // Add number labels as text sprites instead of ugly black boxes
+    if (i % 5 === 0 || i === 1 || i === 50) {
+      // Create canvas for number
+      const canvas = document.createElement('canvas');
+      canvas.width = 64;
+      canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#2A4B8D';
+      ctx.font = 'bold 40px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(i.toString(), 32, 32);
+      
+      const texture = new THREE.CanvasTexture(canvas);
+      const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
+      const sprite = new THREE.Sprite(spriteMaterial);
+      sprite.position.set(startX + i * spacing - spacing/2, 1.5, 0); // Adjust for centered track
+      sprite.scale.set(1, 1, 1);
+      ladderGroup.add(sprite);
+    }
+    
+    ladderGroup.add(space);
+  }
+  
+  // No more label boxes - cleaner look
+  
+  // Add drag controls AND debug free cam with right mouse
+  let freeCam = false;
+  renderer.domElement.addEventListener('mousedown', onMouseDown);
+  renderer.domElement.addEventListener('mousemove', onMouseMove);
+  renderer.domElement.addEventListener('mouseup', onMouseUp);
+  renderer.domElement.addEventListener('wheel', onMouseWheel);
+  renderer.domElement.addEventListener('contextmenu', (e) => { e.preventDefault(); });
+  
+  // Keyboard controls for debugging
+  document.addEventListener('keydown', (e) => {
+    if (!renderer.domElement.parentElement.contains(document.activeElement) && document.activeElement !== document.body) return;
+    
+    if (e.key === '+' || e.key === '=') {
+      window.cylinderRadius = Math.min(3, window.cylinderRadius + 0.1);
+      initialize3DLadder(); // Rebuild with new size
+    } else if (e.key === '-' || e.key === '_') {
+      window.cylinderRadius = Math.max(0.5, window.cylinderRadius - 0.1);
+      initialize3DLadder(); // Rebuild with new size
+    } else if (e.key === '[') {
+      window.cylinderSpacing = Math.max(2, window.cylinderSpacing - 0.5);
+      initialize3DLadder(); // Rebuild with new spacing
+    } else if (e.key === ']') {
+      window.cylinderSpacing = Math.min(10, window.cylinderSpacing + 0.5);
+      initialize3DLadder(); // Rebuild with new spacing
+    }
+  });
+  renderer.domElement.addEventListener('touchstart', onTouchStart);
+  renderer.domElement.addEventListener('touchmove', onTouchMove);
+  renderer.domElement.addEventListener('touchend', onTouchEnd);
+  
+  renderer.domElement.style.cursor = 'grab';
+  
+  // Debug info overlay
+  window.showDebugInfo = function() {
+    const info = document.getElementById('debugInfo') || createDebugOverlay();
+    info.innerHTML = `
+      Camera: x=${camera.position.x.toFixed(1)} y=${camera.position.y.toFixed(1)} z=${camera.position.z.toFixed(1)}<br>
+      View Width: ${(camera.right - camera.left).toFixed(1)}<br>
+      Canvas: ${renderer.domElement.width}x${renderer.domElement.height}px<br>
+      Container: ${container.clientWidth}x${container.clientHeight}px (should be 1368)<br>
+      Zoom: scroll wheel<br>
+      Cylinder Size: ${window.cylinderRadius.toFixed(2)} (use +/-)<br>
+      Spacing: ${window.cylinderSpacing.toFixed(1)} (use [/])<br>
+      Spaces visible: ~${Math.floor((camera.right - camera.left) / window.cylinderSpacing)}
+    `;
+  };
+  
+  function createDebugOverlay() {
+    const div = document.createElement('div');
+    div.id = 'debugInfo';
+    div.style.cssText = 'position:absolute;top:5px;left:5px;color:#2A4B8D;background:rgba(255,255,255,0.9);padding:5px;font-size:11px;font-family:monospace;border:1px solid #2A4B8D;pointer-events:none;';
+    container.appendChild(div);
+    return div;
+  }
+  
+  // showDebugInfo(); // Debug panel disabled
+  
+  // Start animation
+  animate3DLadder();
+}
+
+function onMouseDown(e) {
+  isDragging = true;
+  dragStart.x = e.clientX;
+  dragStart.y = e.clientY;
+  cameraStart.x = camera.position.x;
+  cameraStart.y = camera.position.y;
+  cameraStart.z = camera.position.z;
+  if (e.button === 0) renderer.domElement.style.cursor = 'grabbing';
+}
+
+function onMouseMove(e) {
+  if (!isDragging) return;
+  
+  // Only horizontal scrolling
+  const deltaX = (e.clientX - dragStart.x) * 0.3;
+  camera.position.x = Math.max(-200, Math.min(200, cameraStart.x - deltaX));
+  camera.lookAt(camera.position.x, 0, 0);  // Original lookAt that caused the snap
+  // if (window.showDebugInfo) window.showDebugInfo();
+}
+
+function onMouseWheel(e) {
+  e.preventDefault();
+  const zoom = e.deltaY > 0 ? 1.1 : 0.9;
+  camera.left *= zoom;
+  camera.right *= zoom;
+  camera.top *= zoom;
+  camera.bottom *= zoom;
+  camera.updateProjectionMatrix();
+  // if (window.showDebugInfo) window.showDebugInfo();
+}
+
+function onMouseUp() {
+  isDragging = false;
+  renderer.domElement.style.cursor = 'grab';
+}
+
+function onTouchStart(e) {
+  if (e.touches.length === 1) {
+    isDragging = true;
+    dragStart.x = e.touches[0].clientX;
+    cameraStart.x = camera.position.x;
+  }
+}
+
+function onTouchMove(e) {
+  if (!isDragging || e.touches.length !== 1) return;
+  const deltaX = (e.touches[0].clientX - dragStart.x) * 0.3; // Much faster drag for bigger spaces
+  camera.position.x = Math.max(-150, Math.min(150, cameraStart.x - deltaX)); // Much wider drag range
+  camera.lookAt(camera.position.x, 0, 0);  // Original lookAt that caused the snap
+}
+
+function onTouchEnd() {
+  isDragging = false;
+}
+
+// Update pawn position in 3D
+function update3DPawn(playerId, position, color, emoji = '🐕') {
+  if (!scene || !ladderGroup) {
+    initialize3DLadder();
+    if (!scene) return; // Three.js not loaded
+  }
+  
+  console.log(`update3DPawn called for ${playerId} at position ${position} with color ${color}`);
+  
+  // Remove existing pawn
+  if (pawnMeshes[playerId]) {
+    console.log(`Removing existing pawn for ${playerId}`);
+    ladderGroup.remove(pawnMeshes[playerId]);
+    delete pawnMeshes[playerId];
+  }
+  
+  // Parse color to hex
+  const hexColor = color.startsWith('#') ? parseInt(color.slice(1), 16) : 0x65C3BA;
+  
+  // Create pawn (BIGGER cone that matches player color)
+  const geometry = new THREE.ConeGeometry(0.8, 2.0, 8);
+  const material = new THREE.MeshPhongMaterial({ 
+    color: hexColor,
+    emissive: hexColor,
+    emissiveIntensity: 0.2
+  });
+  
+  const pawn = new THREE.Mesh(geometry, material);
+  const spacing = window.cylinderSpacing || 5; // Match reduced spacing
+  const startX = -(50 * spacing / 2) + spacing/2; // Match centered track
+  
+  // Check how many pawns are at this position
+  const pawnsAtPosition = Object.entries(pawnMeshes).filter(([id, mesh]) => {
+    if (id === playerId) return false; // Don't count ourselves
+    const meshX = mesh.position.x;
+    const targetX = startX + position * spacing;
+    return Math.abs(meshX - targetX) < 0.1; // Same position
+  });
+  
+  // Offset if multiple pawns at same position
+  let zOffset = 0;
+  if (pawnsAtPosition.length > 0) {
+    // Arrange in a row along Z axis
+    const totalPawns = pawnsAtPosition.length + 1;
+    const pawnIndex = pawnsAtPosition.length; // We're the newest
+    zOffset = (pawnIndex - totalPawns/2 + 0.5) * 1.5; // Space them out
+  }
+  
+  pawn.position.set(startX + position * spacing, 0, zOffset);
+  pawn.castShadow = true;
+  pawn.userData.zOffset = zOffset; // Store for animation
+  
+  pawnMeshes[playerId] = pawn;
+  ladderGroup.add(pawn);
+  
+  console.log(`Pawn ${playerId} at position ${position}, z-offset: ${zOffset}, other pawns here: ${pawnsAtPosition.length}`);
+}
+
+function animate3DLadder() {
+  if (!renderer || !scene || !camera) return;
+  
+  requestAnimationFrame(animate3DLadder);
+  
+  // Rotate pawns gently
+  Object.entries(pawnMeshes).forEach(([id, pawn]) => {
+    pawn.rotation.y += 0.02;
+    // Gentle bobbing animation - preserve Z position
+    const currentZ = pawn.userData.zOffset || pawn.position.z;
+    pawn.position.y = 1 + Math.sin(Date.now() * 0.001) * 0.1;
+    pawn.userData.zOffset = currentZ; // Store original z
+  });
+  
+  renderer.render(scene, camera);
+}
+
+// Initialize on load
+window.addEventListener('DOMContentLoaded', () => {
+  initializeTrack();
+  initialize3DLadder();
+  
+  // Initial render attempt
+  setTimeout(() => {
+    if (gameState) renderGame();
+  }, 500);
+});
+</script>
+</body>
+</html>

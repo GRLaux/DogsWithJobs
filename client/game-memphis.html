@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Dogs With Jobs - Multiplayer Memphis</title>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+  :root {
+    --bg-main: #FAF0E6;
+    --coral: #E76F51;
+    --teal: #65C3BA;
+    --peach: #F4A261;
+    --yellow: #E9C46A;
+    --navy: #2A4B8D;
+    --blue-light: #8B9DC3;
+    
+    --gradient-coral: linear-gradient(135deg, #E76F51, #F4A261);
+    --gradient-teal: linear-gradient(135deg, #65C3BA, #2A4B8D);
+    --gradient-navy: linear-gradient(135deg, #2A4B8D, #1A1A4A);
+    --gradient-rainbow: linear-gradient(45deg, #E76F51, #F4A261, #E9C46A, #65C3BA, #2A4B8D);
+    
+    --shadow-sm: 0 2px 4px rgba(42,75,141,0.1);
+    --shadow-md: 0 4px 12px rgba(42,75,141,0.15);
+    --shadow-lg: 0 8px 24px rgba(42,75,141,0.2);
+    
+    --text-primary: #2A4B8D;
+    --text-secondary: #666;
+    --border-radius: 12px;
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+    background: var(--bg-main);
+    color: var(--text-primary);
+    min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+  }
+  
+  /* Memphis Background */
+  .grid-bg {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: 
+      repeating-linear-gradient(0deg, transparent, transparent 100px, rgba(101,195,186,0.05) 100px, rgba(101,195,186,0.05) 101px),
+      repeating-linear-gradient(90deg, transparent, transparent 100px, rgba(231,111,81,0.05) 100px, rgba(231,111,81,0.05) 101px);
+    pointer-events: none;
+    z-index: 0;
+  }
+  
+  /* Geometric decorations */
+  .geo-decor {
+    position: fixed;
+    pointer-events: none;
+    z-index: 1;
+  }
+  
+  .geo-1 {
+    top: 10%;
+    right: 5%;
+    width: 80px;
+    height: 80px;
+    background: var(--gradient-coral);
+    border-radius: 50%;
+    animation: float 6s ease-in-out infinite;
+  }
+  
+  .geo-2 {
+    bottom: 20%;
+    left: 3%;
+    width: 60px;
+    height: 60px;
+    background: var(--gradient-teal);
+    transform: rotate(45deg);
+    animation: rotate 8s linear infinite;
+  }
+  
+  .geo-3 {
+    top: 50%;
+    left: 10%;
+    width: 0;
+    height: 0;
+    border-left: 40px solid transparent;
+    border-right: 40px solid transparent;
+    border-bottom: 70px solid var(--peach);
+    animation: float 7s ease-in-out infinite reverse;
+  }
+  
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-20px); }
+  }
+  
+  @keyframes rotate {
+    from { transform: rotate(45deg); }
+    to { transform: rotate(405deg); }
+  }
+  
+  /* Header */
+  .game-header {
+    background: white;
+    border-bottom: 4px solid var(--navy);
+    padding: 1rem;
+    box-shadow: var(--shadow-lg);
+    position: relative;
+    z-index: 100;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .header-title {
+    font-size: 1.5rem;
+    font-weight: 900;
+    background: var(--gradient-rainbow);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  .turn-info {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+  }
+  
+  .turn-badge {
+    background: var(--gradient-coral);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 25px;
+    font-weight: bold;
+    box-shadow: var(--shadow-md);
+  }
+  
+  .current-player-badge {
+    background: var(--gradient-teal);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 25px;
+    font-weight: bold;
+    box-shadow: var(--shadow-md);
+    animation: pulse 2s infinite;
+  }
+  
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
+  }
+  
+  /* Game Container */
+  .game-container {
+    max-width: 1400px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+    position: relative;
+    z-index: 10;
+  }
+  
+  /* Opponents Section */
+  .opponents-section {
+    margin-bottom: 2rem;
+  }
+  
+  .section-title {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--navy);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .opponents-grid {
+    display: flex;
+    gap: 1rem;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+  }
+  
+  .opponent-card {
+    background: white;
+    border: 3px solid var(--teal);
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    min-width: 180px;
+    box-shadow: var(--shadow-md);
+    position: relative;
+    transition: transform 0.3s;
+  }
+  
+  .opponent-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-lg);
+  }
+  
+  .opponent-card.is-current {
+    border-color: var(--coral);
+    background: linear-gradient(135deg, rgba(231,111,81,0.1), rgba(244,162,97,0.1));
+    animation: glow 2s infinite;
+  }
+  
+  @keyframes glow {
+    0%, 100% { box-shadow: 0 0 20px rgba(231,111,81,0.3); }
+    50% { box-shadow: 0 0 40px rgba(231,111,81,0.5); }
+  }
+  
+  .opponent-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
+  
+  .opponent-name {
+    font-weight: bold;
+    color: var(--navy);
+  }
+  
+  .opponent-position {
+    background: var(--gradient-teal);
+    color: white;
+    padding: 0.2rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.8rem;
+  }
+  
+  .opponent-breed {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    font-style: italic;
+    margin-bottom: 0.5rem;
+  }
+  
+  .opponent-hand {
+    display: flex;
+    gap: 3px;
+    margin-top: 0.5rem;
+  }
+  
+  .card-back {
+    width: 25px;
+    height: 35px;
+    background: var(--gradient-navy);
+    border-radius: 4px;
+    border: 1px solid var(--navy);
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .card-back::after {
+    content: '🐕';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 12px;
+    opacity: 0.3;
+  }
+  
+  /* Projects Section */
+  .projects-section {
+    margin-bottom: 2rem;
+  }
+  
+  .projects-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+  }
+  
+  .project-card {
+    background: white;
+    border: 3px solid var(--yellow);
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    box-shadow: var(--shadow-md);
+    position: relative;
+    transition: all 0.3s;
+  }
+  
+  .project-card.can-drop {
+    border-color: var(--teal);
+    transform: scale(1.05);
+    box-shadow: 0 0 30px rgba(101,195,186,0.4);
+  }
+  
+  .project-tier {
+    position: absolute;
+    top: -12px;
+    right: 12px;
+    background: var(--gradient-coral);
+    color: white;
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    text-transform: uppercase;
+  }
+  
+  .project-tier.Management {
+    background: var(--gradient-teal);
+  }
+  
+  .project-tier.Executive {
+    background: var(--gradient-navy);
+  }
+  
+  .project-name {
+    font-weight: bold;
+    color: var(--navy);
+    margin: 0.5rem 0;
+    font-size: 1rem;
+  }
+  
+  .project-requirements {
+    display: flex;
+    gap: 0.5rem;
+    margin: 0.5rem 0;
+    flex-wrap: wrap;
+  }
+  
+  .energy-badge {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    border: 2px solid white;
+    box-shadow: var(--shadow-sm);
+  }
+  
+  .energy-comm { background: linear-gradient(135deg, #FFD93D, #FFB344); }
+  .energy-focus { background: linear-gradient(135deg, #A855F7, #7C3AED); }
+  .energy-social { background: linear-gradient(135deg, #EC4899, #DB2777); }
+  .energy-phys { background: linear-gradient(135deg, #10B981, #059669); }
+  
+  .project-reward {
+    text-align: center;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 2px dashed var(--yellow);
+    color: var(--teal);
+    font-weight: bold;
+  }
+  
+  .project-bids {
+    display: flex;
+    gap: 4px;
+    position: absolute;
+    bottom: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  
+  .bid-marker {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid white;
+    box-shadow: var(--shadow-sm);
+  }
+  
+  /* My Hand Section */
+  .my-hand-section {
+    background: white;
+    border: 4px solid var(--navy);
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-lg);
+    position: sticky;
+    bottom: 20px;
+  }
+  
+  .my-info {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding: 1rem;
+    background: linear-gradient(135deg, rgba(101,195,186,0.1), rgba(42,75,141,0.1));
+    border-radius: var(--border-radius);
+  }
+  
+  .info-block {
+    text-align: center;
+  }
+  
+  .info-label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.25rem;
+  }
+  
+  .info-value {
+    font-weight: bold;
+    color: var(--navy);
+  }
+  
+  .my-agenda {
+    background: var(--gradient-coral);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    text-align: center;
+    font-weight: bold;
+  }
+  
+  .my-cards {
+    display: flex;
+    gap: 1rem;
+    overflow-x: auto;
+    padding: 1rem 0;
+  }
+  
+  .action-card {
+    background: white;
+    border: 3px solid var(--coral);
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    min-width: 140px;
+    cursor: move;
+    transition: all 0.3s;
+    box-shadow: var(--shadow-md);
+    position: relative;
+  }
+  
+  .action-card:hover {
+    transform: translateY(-10px) rotate(2deg);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--teal);
+  }
+  
+  .action-card.dragging {
+    opacity: 0.5;
+    transform: rotate(5deg);
+  }
+  
+  .card-name {
+    font-weight: bold;
+    color: var(--navy);
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+  }
+  
+  .card-energy {
+    display: flex;
+    gap: 0.25rem;
+    justify-content: center;
+  }
+  
+  /* Animations */
+  .bid-fly {
+    position: fixed;
+    width: 80px;
+    height: 110px;
+    background: var(--gradient-rainbow);
+    border-radius: var(--border-radius);
+    z-index: 9999;
+    pointer-events: none;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+  }
+  
+  .bid-fly::after {
+    content: '🐕';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 40px;
+  }
+  
+  /* Notifications */
+  .game-notification {
+    position: fixed;
+    top: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    border: 3px solid var(--coral);
+    padding: 1rem 2rem;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-lg);
+    z-index: 10000;
+    animation: slideInBounce 0.5s ease-out;
+  }
+  
+  @keyframes slideInBounce {
+    0% { 
+      transform: translateX(-50%) translateY(-200px);
+      opacity: 0;
+    }
+    60% { 
+      transform: translateX(-50%) translateY(20px);
+      opacity: 1;
+    }
+    100% { 
+      transform: translateX(-50%) translateY(0);
+    }
+  }
+  
+  /* Buttons */
+  .btn {
+    background: var(--gradient-teal);
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 25px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: var(--shadow-md);
+  }
+  
+  .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+  }
+  
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
+  .btn-primary {
+    background: var(--gradient-coral);
+  }
+  
+  /* Mobile Responsive */
+  @media (max-width: 768px) {
+    .game-container {
+      margin: 1rem 0;
+    }
+    
+    .projects-grid {
+      grid-template-columns: 1fr;
+    }
+    
+    .my-info {
+      grid-template-columns: 1fr;
+      gap: 0.5rem;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="grid-bg"></div>
+<div class="geo-decor geo-1"></div>
+<div class="geo-decor geo-2"></div>
+<div class="geo-decor geo-3"></div>
+
+<header class="game-header">
+  <h1 class="header-title">🐕 Dogs With Jobs 🎯</h1>
+  <div class="turn-info">
+    <div class="turn-badge" id="turnDisplay">Turn 1</div>
+    <div class="current-player-badge" id="currentPlayerDisplay">Loading...</div>
+  </div>
+  <button class="btn btn-primary" onclick="endTurn()" id="endTurnBtn">End Turn</button>
+</header>
+
+<div class="game-container">
+  <!-- Opponents -->
+  <div class="opponents-section">
+    <h2 class="section-title">👥 Other Players</h2>
+    <div class="opponents-grid" id="opponentsArea"></div>
+  </div>
+  
+  <!-- Projects -->
+  <div class="projects-section">
+    <h2 class="section-title">📋 Available Projects</h2>
+    <div class="projects-grid" id="projectsArea"></div>
+  </div>
+  
+  <!-- My Hand -->
+  <div class="my-hand-section">
+    <div class="my-info">
+      <div class="info-block">
+        <div class="info-label">Your Breed</div>
+        <div class="info-value" id="myBreed">Loading...</div>
+      </div>
+      <div class="info-block">
+        <div class="my-agenda" id="myAgenda">Loading Agenda...</div>
+      </div>
+      <div class="info-block">
+        <div class="info-label">Position</div>
+        <div class="info-value">Space <span id="myPosition">1</span></div>
+      </div>
+    </div>
+    <h3 class="section-title">🎴 Your Hand</h3>
+    <div class="my-cards" id="myCards"></div>
+  </div>
+</div>
+
+<script>
+const socket = io();
+let gameState = null;
+let myPlayerId = null;
+let draggedCard = null;
+
+// Get player ID from session/URL
+const urlParams = new URLSearchParams(window.location.search);
+myPlayerId = urlParams.get('playerId') || sessionStorage.getItem('playerId');
+
+// Load initial game data from session storage
+const initialData = sessionStorage.getItem('gameData');
+if (initialData) {
+  gameState = JSON.parse(initialData);
+  setTimeout(() => renderGame(), 100);
+}
+
+// Reconnect to get latest state
+socket.emit('reconnect-to-game', myPlayerId);
+
+// Socket events
+socket.on('game-started', (data) => {
+  gameState = data;
+  renderGame();
+});
+
+socket.on('game-updated', (data) => {
+  gameState = data;
+  renderGame();
+});
+
+socket.on('opponent-bid', (data) => {
+  showBidAnimation(data);
+});
+
+// Render game
+function renderGame() {
+  if (!gameState || !gameState.myData) {
+    console.log('Waiting for game state...', gameState);
+    return;
+  }
+  
+  // Update header
+  document.getElementById('turnDisplay').textContent = `Turn ${gameState.turn || 1}`;
+  document.getElementById('currentPlayerDisplay').textContent = 
+    gameState.isMyTurn ? '🎮 Your Turn!' : `⏳ ${gameState.currentPlayerName}'s Turn`;
+  document.getElementById('endTurnBtn').disabled = !gameState.isMyTurn;
+  
+  // Render all sections
+  renderOpponents();
+  renderProjects();
+  renderMyHand();
+}
+
+function renderOpponents() {
+  const area = document.getElementById('opponentsArea');
+  if (!gameState.opponents) return;
+  
+  area.innerHTML = '';
+  
+  gameState.opponents.forEach(opp => {
+    const card = document.createElement('div');
+    card.className = 'opponent-card';
+    if (opp.name === gameState.currentPlayerName) {
+      card.classList.add('is-current');
+    }
+    
+    // Generate player color based on index
+    const colors = ['#E76F51', '#65C3BA', '#F4A261', '#E9C46A'];
+    const colorIndex = gameState.opponents.indexOf(opp) % colors.length;
+    
+    card.innerHTML = `
+      <div class="opponent-header">
+        <div class="opponent-name">${opp.name}</div>
+        <div class="opponent-position">Lvl ${opp.position}</div>
+      </div>
+      <div class="opponent-breed">🐕 ${opp.breed || 'Unknown'}</div>
+      <div class="opponent-hand">
+        ${Array(opp.handActionSize || 0).fill('<div class="card-back"></div>').join('')}
+      </div>
+      <div style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-secondary);">
+        Projects: ${opp.completedProjects || 0} | Distractions: ${opp.distractionsPlayed || 0}
+      </div>
+    `;
+    
+    card.style.borderColor = colors[colorIndex];
+    area.appendChild(card);
+  });
+}
+
+function renderProjects() {
+  const area = document.getElementById('projectsArea');
+  if (!gameState.projects) return;
+  
+  area.innerHTML = '';
+  
+  gameState.projects.forEach((project, index) => {
+    const card = document.createElement('div');
+    card.className = 'project-card';
+    card.dataset.index = index;
+    
+    // Generate energy requirement badges
+    const reqHtml = Object.entries(project.cost || {})
+      .filter(([_, val]) => val > 0)
+      .map(([type, val]) => {
+        const emoji = {
+          comm: '💬',
+          focus: '⚡',
+          social: '❤️',
+          phys: '💪'
+        }[type];
+        return Array(val).fill(`<div class="energy-badge energy-${type}">${emoji}</div>`).join('');
+      }).join('');
+    
+    card.innerHTML = `
+      <div class="project-tier ${project.tier}">${project.tier}</div>
+      <div class="project-name">${project.name}</div>
+      <div class="project-requirements">${reqHtml}</div>
+      <div class="project-reward">🚀 +${project.reward} spaces</div>
+      <div class="project-bids" id="bids-${index}"></div>
+    `;
+    
+    // Make it a drop zone
+    card.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      if (gameState.isMyTurn) {
+        card.classList.add('can-drop');
+      }
+    });
+    
+    card.addEventListener('dragleave', () => {
+      card.classList.remove('can-drop');
+    });
+    
+    card.addEventListener('drop', (e) => {
+      e.preventDefault();
+      card.classList.remove('can-drop');
+      if (draggedCard && gameState.isMyTurn) {
+        placeBid(index, draggedCard);
+      }
+    });
+    
+    area.appendChild(card);
+  });
+}
+
+function renderMyHand() {
+  const myData = gameState.myData;
+  if (!myData) return;
+  
+  // Update my info
+  document.getElementById('myBreed').textContent = myData.breed || 'Unknown Breed';
+  document.getElementById('myAgenda').textContent = myData.agenda ? 
+    `🎯 ${myData.agenda.name}` : 'No Agenda';
+  document.getElementById('myPosition').textContent = myData.position || 1;
+  
+  // Render cards
+  const cardsArea = document.getElementById('myCards');
+  cardsArea.innerHTML = '';
+  
+  if (!myData.handAction) {
+    cardsArea.innerHTML = '<div style="color: var(--text-secondary);">No cards in hand</div>';
+    return;
+  }
+  
+  myData.handAction.forEach((card, index) => {
+    const cardEl = document.createElement('div');
+    cardEl.className = 'action-card';
+    cardEl.draggable = gameState.isMyTurn;
+    
+    const energyHtml = Object.entries(card.energy || {})
+      .filter(([_, val]) => val > 0)
+      .map(([type, val]) => {
+        const emoji = {
+          comm: '💬',
+          focus: '⚡',
+          social: '❤️',
+          phys: '💪'
+        }[type];
+        return `<div class="energy-badge energy-${type}">${emoji}${val}</div>`;
+      }).join('');
+    
+    cardEl.innerHTML = `
+      <div class="card-name">${card.name}</div>
+      <div class="card-energy">${energyHtml}</div>
+    `;
+    
+    if (gameState.isMyTurn) {
+      cardEl.addEventListener('dragstart', (e) => {
+        draggedCard = card;
+        cardEl.classList.add('dragging');
+      });
+      
+      cardEl.addEventListener('dragend', () => {
+        draggedCard = null;
+        cardEl.classList.remove('dragging');
+      });
+    }
+    
+    cardsArea.appendChild(cardEl);
+  });
+}
+
+function placeBid(projectIndex, card) {
+  socket.emit('place-bid', {
+    projectIndex: projectIndex,
+    cardId: card.id
+  });
+  
+  // Remove card from hand for immediate feedback
+  gameState.myData.handAction = gameState.myData.handAction.filter(c => c.id !== card.id);
+  renderMyHand();
+  
+  showNotification('Bid placed!');
+}
+
+function showBidAnimation(data) {
+  const animCard = document.createElement('div');
+  animCard.className = 'bid-fly';
+  
+  // Start from opponent position
+  const startY = 200;
+  const endY = 400;
+  
+  animCard.style.cssText = `
+    left: 50%;
+    top: ${startY}px;
+    transition: all 1s cubic-bezier(0.4, 0, 0.2, 1);
+  `;
+  
+  document.body.appendChild(animCard);
+  
+  setTimeout(() => {
+    animCard.style.top = `${endY}px`;
+    animCard.style.transform = 'rotate(360deg) scale(0.5)';
+    animCard.style.opacity = '0';
+  }, 50);
+  
+  setTimeout(() => animCard.remove(), 1100);
+  
+  showNotification(`${data.playerName || 'Opponent'} placed a bid!`);
+}
+
+function endTurn() {
+  if (gameState && gameState.isMyTurn) {
+    socket.emit('end-turn');
+  }
+}
+
+function showNotification(text) {
+  const notif = document.createElement('div');
+  notif.className = 'game-notification';
+  notif.textContent = text;
+  document.body.appendChild(notif);
+  
+  setTimeout(() => {
+    notif.style.animation = 'slideInBounce 0.5s ease-out reverse';
+    setTimeout(() => notif.remove(), 500);
+  }, 2500);
+}
+
+// Initial render attempt
+setTimeout(() => {
+  if (gameState) renderGame();
+}, 500);
+</script>
+</body>
+</html>
